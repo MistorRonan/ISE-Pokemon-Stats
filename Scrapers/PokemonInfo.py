@@ -27,7 +27,6 @@ def get_replay_info(id):
 
 def get_replay_log(match_json):
     log = match_json["log"]
-    print(log)
     return log
 
 def get_replay_users(log):
@@ -58,8 +57,14 @@ def get_replay_mons(log):
 
     pass
 
-match_id="gen5ou-2520810636"
-format="gen5ou"
+def get_replay_moves(log):
+    moves_log = [x for x in log.split("\n") if "|move|" in x]
+    moves = [ x.split("|")[3] for x in moves_log]
+    return moves
+
+
+match_id="gen9nationaldex-2520845613"
+format="gen9ou"
 
 ##print(search_replays(format))
 
@@ -78,8 +83,22 @@ def count_mons(replay_list,byname=False):
     sorted_pokemon_dictionary = dict(sorted(pokemon_dictionary.items(), key=lambda item: item[1]))
     return sorted_pokemon_dictionary
 
-##mon_dict=count_mons(search_replays(format))
-##for entry in mon_dict:
-   ## print(f"{entry}:{mon_dict[entry]}")
-output = get_replay_info(match_id)
-print(get_replay_mons(get_replay_log(output)))
+def count_moves(replay_list):
+    replay_list = [id["id"] for id in replay_list]
+    moves_dictionary = {}
+    for entry in replay_list:
+        moves_list = get_replay_moves(get_replay_log(get_replay_info(entry)))
+        for move in moves_list:
+            if move in moves_dictionary:
+                moves_dictionary[move] = moves_dictionary[move] + 1
+            else:
+                moves_dictionary[move] = 1
+
+    sorted_moves_dictionary = dict(sorted(moves_dictionary.items(), key=lambda item: item[1]))
+    return sorted_moves_dictionary
+
+mon_dict=count_moves(search_replays(format))
+for entry in mon_dict:
+   print(f"{entry}:{mon_dict[entry]}")
+#output = get_replay_info(match_id)
+#get_replay_moves(get_replay_log(output))
