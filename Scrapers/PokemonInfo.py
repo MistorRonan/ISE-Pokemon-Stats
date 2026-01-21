@@ -97,8 +97,8 @@ def count_moves(replay_list):
     sorted_moves_dictionary = dict(sorted(moves_dictionary.items(), key=lambda item: item[1]))
     return sorted_moves_dictionary
 
-mon_dict=count_moves(search_replays(format))
-for entry in mon_dict:
-   print(f"{entry}:{mon_dict[entry]}")
+#mon_dict=count_mons(search_replays(format))
+#for entry in mon_dict:
+#   print(f"{entry}:{mon_dict[entry]}")
 #output = get_replay_info(match_id)
 #get_replay_moves(get_replay_log(output))
