@@ -4,7 +4,7 @@ import json
 from concurrent.futures import ThreadPoolExecutor
 
 base_url = "https://replay.pokemonshowdown.com/"
-MAX_WORKERS = 10
+MAX_WORKERS = 5
 
 
 def collect(param=""):
@@ -127,7 +127,7 @@ if __name__ == "__main__":
 
     # Final report generation
     final_sorted = sorted(cumulative_results.items(), key=lambda x: x[1], reverse=True)
-    with open("pokemon_usage_report.txt", "w") as f:
+    with open("../Scrapers/pokemon_usage_report.txt", "w") as f:
         f.write("=== FINAL SUMMARY REPORT ===\n")
         f.write(f"{'Name':<20} | {'Total':<10} | {'Avg':<10}\n")
         f.write("-" * 45 + "\n")

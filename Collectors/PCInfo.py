@@ -31,3 +31,5 @@ def get_pc_usage_map():
     return usage_map
 
 
+if __name__ == "__main__":
+    print(collect())
