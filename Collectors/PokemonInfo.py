@@ -1,8 +1,14 @@
 import requests
 import time
 import json
+
+from BlockTimer import BlockTimer
+import libLogging
 from concurrent.futures import ThreadPoolExecutor
 
+from libLogging import setup_logger
+
+log = setup_logger("Pokemon Info")
 base_url = "https://replay.pokemonshowdown.com/"
 MAX_WORKERS = 5
 
@@ -88,7 +94,7 @@ def search_replays(game_format=""):
         url = f"{base_url}search.json?format={game_format}"
     else: #incase we recieve an invalid format
         if len(game_format.replace(" ", ""))>0:
-            print("invalid format, prefroming default search")
+            log.warning("Game format was invalid. Preforming default search")
         url = f"{base_url}search.json"
     response = requests.get(url)
     if response.status_code == 200:
@@ -160,8 +166,11 @@ def count_mons(replay_list):
             mon_list = get_replay_mons(get_replay_log(match_json))
             for mon in mon_list:
                 pokemon_dictionary[mon] = pokemon_dictionary.get(mon, 0) + 1
-
-    return dict(sorted(pokemon_dictionary.items(), key=lambda item: item[1], reverse=True))
+    final_return = dict(sorted(pokemon_dictionary.items(), key=lambda item: item[1], reverse=True))
+    if len(final_return)==0 :
+        log.error("Something went wrong when retriving the replays")
+    else:
+        return final_return
 
 
 def count_moves(replay_list):
@@ -182,7 +191,6 @@ def count_moves(replay_list):
 
 
 if __name__ == "__main__":
-    my_id = "gen4ou-2528437203"
-    my_id2 = "gen8ou-2528523148"
-    print(search_replays("binglemons"))
+    with BlockTimer("test",logger=log):
+        print(collect("gen4ou"))
 

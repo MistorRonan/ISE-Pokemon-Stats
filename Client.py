@@ -48,12 +48,12 @@ def encode_message(payload):
     return header + payload
 
 
-def start_client():
+def start_client(port: int = 54545, server_ip: str = '127.0.0.1'):
     # --- CONFIGURATION ---
     # '127.0.0.1' is the 'loopback' address, referring to your own machine.
     # The PORT must match the server's listening port.
-    SERVER_IP = '127.0.0.1'
-    SERVER_PORT = 54545
+    SERVER_IP = server_ip
+    SERVER_PORT = port
 
     # --- SOCKET CREATION ---
     # We create the same type of socket as the server (IPv4, TCP).

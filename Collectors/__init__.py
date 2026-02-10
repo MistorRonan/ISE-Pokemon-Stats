@@ -3,6 +3,7 @@ import importlib
 from datetime import datetime
 
 # A list to store all the found 'collect' functions
+# each entry is a dictionary thats in the format of {"source" :, "func"}
 all_collectors = []
 
 # 1. Iterate through all modules in the current package directory
@@ -15,7 +16,11 @@ for loader, module_name, is_pkg in pkgutil.iter_modules(__path__):
     if hasattr(module, 'collect'):
         collect_func = getattr(module, 'collect')
         if callable(collect_func):
-            all_collectors.append(collect_func)
+            temp_dict = {
+                "source" : module_name,
+                "func" : collect_func
+            }
+            all_collectors.append(temp_dict)
 
 
 def run_all(param=""):
@@ -39,9 +44,9 @@ def run_all(param=""):
         result_time = datetime.utcnow().isoformat() + "Z"
         results.append(
             {
-                "collector": getattr(func, "__name__", "unknown"),
+                "collector": func["source"],
                 "timestamp": result_time,
-                "result": func(param),
+                "result": func["func"](param),
             }
         )
 
@@ -52,3 +57,6 @@ def run_all(param=""):
         "completed_at": completed_at,
         "results": results,
     }
+
+if __name__ == "__main__":
+    print(run_all())

@@ -62,13 +62,18 @@ def decode_message(data_buffer):
     
     return payload, remaining
 
+def is_port_in_use(port: int) -> bool:
+    import socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(('localhost', port)) == 0
 
-def start_server():
+
+def start_server(port: int = 54545):
     # --- CONFIGURATION ---
     # '0.0.0.0' is a special IPv4 address that tells the server to listen
     # to every available network interface (WiFi, Ethernet, and Localhost).
     HOST = '0.0.0.0'
-    PORT = 54545
+    PORT = port
 
     # --- SOCKET CREATION ---
     # socket.AF_INET: Specifies the IPv4 protocol family.
