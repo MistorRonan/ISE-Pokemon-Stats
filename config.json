@@ -1,5 +1,6 @@
 {
-  "format": "gen9ou",
+  "pokemon.interval": 3600,
+  "pokemon.formats": ["gen9ou", "vgcregF"],
   "server": {
     "host": "0.0.0.0",
     "port": 8000
