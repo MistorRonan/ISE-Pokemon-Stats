@@ -19,7 +19,7 @@ import logging
 from dataclasses import dataclass
 from dataclasses_json import dataclass_json
 
-from lib_metrics_datamodel.metrics_datamodel import (
+from metrics_datamodel import (
     DTO_Aggregator, DTO_DataSnapshot, DTO_Device, DTO_Metric
 )
 import PokemonInfo
