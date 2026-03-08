@@ -13,9 +13,14 @@ Collector interface (read by collectors/__init__.py):
     multi_device       -> bool   False — collect() returns a single flat dict
 """
 
+import sys
 import platform
 import psutil
-from lib_config.config import Config
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from config import Config
 from collectors.snapshot_builder import get_machine_guid
 
 _config = Config(__file__)

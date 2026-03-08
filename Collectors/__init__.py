@@ -20,13 +20,18 @@ Any .py file in this folder with a callable collect() is picked up automatically
 No registration or changes to this file are needed when adding a new collector.
 """
 
+import sys
 import pkgutil
 import importlib
 import logging
 import threading
 import time
+from pathlib import Path
 from datetime import datetime, timedelta
-#from lib_config.config import Config
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from config import Config
 from collectors.snapshot_builder import build_snapshot
 from collectors.uploader_queue import UploaderQueue
 

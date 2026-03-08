@@ -17,11 +17,16 @@ param format: "<format_name>|<type>"
     type         — "mons" for Pokémon counts (default), "move" for move counts
 """
 
+import sys
 import uuid
 import requests
 import logging
+from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
-from lib_config.config import Config
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from config import Config
 
 _config = Config(__file__)
 _log    = logging.getLogger(__name__)
