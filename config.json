@@ -1,8 +1,25 @@
 {
-  "pokemon.interval": 3600,
-  "pokemon.formats": ["gen9ou", "vgcregF"],
-  "server": {
-    "host": "0.0.0.0",
-    "port": 8000
+  "pokemon": {
+    "interval": 3600,
+    "formats": [
+      "gen9ou",
+      "gen9vgc2026"
+    ]
+  },
+  "client": {
+    "interval": 30
+  },
+  "ingest_api": {
+    "host": "http://localhost",
+    "port": 5001,
+    "debug": false
+  },
+  "read_api": {
+    "host": "http://localhost",
+    "port": 5002,
+    "debug": false
+  },
+  "database": {
+    "connection_string": "sqlite:///metrics.db"
   }
 }

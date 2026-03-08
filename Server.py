@@ -2,17 +2,22 @@
 """
 server.py
 
-Thin entry point for the API servers.
+Entry point for the API servers.
 
 Usage:
-    python server.py ingest   — run the ingest API (receives snapshots from agents)
-    python server.py read     — run the read API (serves data to the frontend)
-    python server.py both     — run both APIs concurrently in separate threads
+    python server.py ingest   — run the ingest API only
+    python server.py read     — run the read API only
+    python server.py both     — run both APIs concurrently (normal usage)
 
-Each API runs on its own configured port (config.ingest_api.port and
-config.read_api.port). Running both from this entry point is convenient
-for development — in production you would typically run them as separate
-processes on separate machines.
+When running both, a threading.Event is created here and passed into both
+APIs. IngestAPI sets it after every successful snapshot write; ReadAPI's SSE
+generator waits on it and pushes to connected frontend clients the moment it
+fires — no polling, no delay.
+
+Running as separate processes (python server.py ingest / python server.py read)
+loses the shared Event, so the SSE generator falls back to polling SystemState
+in the database. This is fine for deployments where the two APIs need to be
+managed separately, but for normal usage 'both' is recommended.
 """
 
 import sys
@@ -21,29 +26,13 @@ import threading
 
 logging.basicConfig(level=logging.INFO)
 
-SERVERS = {
-    'ingest': None,
-    'read':   None,
-}
+_logger = logging.getLogger(__name__)
 
 
-def _import_servers():
-    """Defer imports until after sys.path is set up by the API modules themselves."""
+def _import_apis():
     from api.ingest_api import IngestAPI
     from api.read_api import ReadAPI
-    SERVERS['ingest'] = IngestAPI
-    SERVERS['read']   = ReadAPI
-
-
-def _run_in_thread(server_class):
-    """Start a server in a background thread. Used when running both concurrently."""
-    t = threading.Thread(
-        target=lambda: server_class().run(),
-        name=server_class.__name__,
-        daemon=True
-    )
-    t.start()
-    return t
+    return IngestAPI, ReadAPI
 
 
 def main() -> int:
@@ -51,26 +40,41 @@ def main() -> int:
         print("Usage: python server.py [ingest | read | both]")
         return 1
 
-    _import_servers()
+    IngestAPI, ReadAPI = _import_apis()
     mode = sys.argv[1]
 
     if mode == 'ingest':
-        return SERVERS['ingest']().run()
+        return IngestAPI().run()
 
     elif mode == 'read':
-        return SERVERS['read']().run()
+        return ReadAPI().run()
 
     elif mode == 'both':
-        # Run ingest in a background thread, read in the main thread
-        # (Flask needs the main thread for signal handling in debug mode)
-        ingest_thread = _run_in_thread(SERVERS['ingest'])
-        logging.getLogger(__name__).info(
-            "IngestAPI started in background thread, starting ReadAPI in main thread"
+        # Create the shared event that connects the two APIs.
+        # IngestAPI.set_update_event() and ReadAPI.set_update_event() both
+        # receive this same object so they share it in memory.
+        update_event = threading.Event()
+
+        ingest = IngestAPI()
+        ingest.set_update_event(update_event)
+
+        read = ReadAPI()
+        read.set_update_event(update_event)
+
+        # Run ingest in a background thread, read in the main thread.
+        # Flask needs the main thread for signal handling in debug mode.
+        ingest_thread = threading.Thread(
+            target=ingest.run,
+            name='IngestAPI',
+            daemon=True
         )
+        ingest_thread.start()
+        _logger.info("IngestAPI started in background thread")
+
         try:
-            return SERVERS['read']().run()
+            return read.run()
         except KeyboardInterrupt:
-            logging.getLogger(__name__).info("Server shutting down")
+            _logger.info("Server shutting down")
             return 0
 
 

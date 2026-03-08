@@ -26,7 +26,7 @@ import logging
 import threading
 import time
 from datetime import datetime, timedelta
-from lib_config.config import Config
+#from lib_config.config import Config
 from collectors.snapshot_builder import build_snapshot
 from collectors.uploader_queue import UploaderQueue
 
