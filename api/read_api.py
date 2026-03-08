@@ -40,12 +40,12 @@ from flask import Flask, request, Response, stream_with_context
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from config import Config
-from lib_metrics_datamodel.metrics_datamodel import (
+from collectors.metrics_datamodel import (
     DTO_Aggregator, DTO_DataSnapshot, DTO_Device, DTO_Metric
 )
 from models import Aggregator, Device, DeviceMetricType, MetricSnapshot, MetricValue, SystemState
-import PCInfo
-import PokemonInfo
+import collectors.PCInfo
+import collectors.PokemonInfo
 
 # How often the SSE generator polls the database when no threading.Event is
 # available (standalone deployment). Lower = more responsive, higher = less

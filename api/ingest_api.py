@@ -29,7 +29,7 @@ from flask import Flask, request
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from config import Config
-from lib_metrics_datamodel.metrics_datamodel import DTO_Aggregator
+from collectors.metrics_datamodel import DTO_Aggregator
 from models import Aggregator, Device, DeviceMetricType, MetricSnapshot, MetricValue, SystemState
 
 
