@@ -67,8 +67,7 @@ def get_pc_usage_map() -> dict:
             disk = psutil.disk_usage(path)
             usage_map.update({
                 "disk-total-gb": disk.total // (1024 ** 3),
-                "disk-free-gb": disk.free // (1024 ** 3),
-                "disk-fstype": psutil.disk_partitions()[0].fstype  # e.g., NTFS or ext4
+                "disk-free-gb": disk.free // (1024 ** 3)
             })
         except Exception as e:
             usage_map["disk-error"] = str(e)
@@ -81,7 +80,7 @@ def get_pc_usage_map() -> dict:
         net_io = psutil.net_io_counters()
 
         usage_map.update({
-            "boot-time": bt.strftime("%Y-%m-%d %H:%M:%S"),
+            "boot-time-epoch": psutil.boot_time(),
             "net-total-sent-mb": round(net_io.bytes_sent / (1024 ** 2), 2),
             "net-total-recv-mb": round(net_io.bytes_recv / (1024 ** 2), 2),
             "users-logged-in": len(psutil.users())
