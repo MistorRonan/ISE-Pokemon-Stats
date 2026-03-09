@@ -44,8 +44,8 @@ from collectors.metrics_datamodel import (
     DTO_Aggregator, DTO_DataSnapshot, DTO_Device, DTO_Metric
 )
 from models import Aggregator, Device, DeviceMetricType, MetricSnapshot, MetricValue, SystemState
-import collectors.PCInfo
-import collectors.PokemonInfo
+from collectors import PCInfo
+from collectors import PokemonInfo
 
 # How often the SSE generator polls the database when no threading.Event is
 # available (standalone deployment). Lower = more responsive, higher = less

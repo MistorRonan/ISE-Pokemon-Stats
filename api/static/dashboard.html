@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Read API Explorer</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:       #0d0f12;
+    --surface:  #151820;
+    --border:   #252a35;
+    --accent:   #3b82f6;
+    --accent2:  #10b981;
+    --warn:     #f59e0b;
+    --error:    #ef4444;
+    --text:     #e2e8f0;
+    --muted:    #64748b;
+    --mono:     'IBM Plex Mono', monospace;
+    --sans:     'IBM Plex Sans', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    grid-template-rows: 48px 1fr;
+  }
+
+  /* ── Header ── */
+  header {
+    grid-column: 1 / -1;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 12px;
+  }
+  header .logo { font-family: var(--mono); font-weight: 600; font-size: 13px; color: var(--accent); letter-spacing: .05em; }
+  header .sep  { color: var(--border); }
+  header .subtitle { font-size: 12px; color: var(--muted); }
+  header .sse-badge {
+    margin-left: auto;
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+  }
+  .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--muted);
+    transition: background .3s;
+  }
+  .dot.live { background: var(--accent2); box-shadow: 0 0 6px var(--accent2); animation: pulse 2s infinite; }
+  .dot.error { background: var(--error); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+
+  /* ── Sidebar ── */
+  aside {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 16px 0;
+    overflow-y: auto;
+  }
+  .section-label {
+    font-family: var(--mono); font-size: 10px; font-weight: 600;
+    color: var(--muted); letter-spacing: .12em; text-transform: uppercase;
+    padding: 8px 16px 4px;
+  }
+  .endpoint-btn {
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; padding: 9px 16px;
+    background: none; border: none; cursor: pointer;
+    color: var(--text); font-family: var(--mono); font-size: 12px;
+    text-align: left; transition: background .15s;
+    border-left: 2px solid transparent;
+  }
+  .endpoint-btn:hover { background: rgba(59,130,246,.06); }
+  .endpoint-btn.active { background: rgba(59,130,246,.1); border-left-color: var(--accent); color: var(--accent); }
+  .method-tag {
+    font-size: 10px; font-weight: 600; padding: 2px 5px; border-radius: 3px;
+    background: rgba(59,130,246,.15); color: var(--accent); flex-shrink: 0;
+  }
+  .sse-tag { background: rgba(16,185,129,.15); color: var(--accent2); }
+
+  /* ── Main ── */
+  main { padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .panel-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .panel-title { font-family: var(--mono); font-size: 13px; font-weight: 600; }
+  .panel-desc  { font-size: 12px; color: var(--muted); margin-left: auto; }
+  .panel-body  { padding: 16px; }
+
+  /* Params form */
+  .params-grid { display: grid; gap: 10px; }
+  .param-row { display: grid; grid-template-columns: 140px 1fr; align-items: center; gap: 8px; }
+  .param-label { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .param-input {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 4px; padding: 6px 10px;
+    color: var(--text); font-family: var(--mono); font-size: 12px;
+    outline: none; transition: border-color .15s; width: 100%;
+  }
+  .param-input:focus { border-color: var(--accent); }
+  .param-hint { font-size: 11px; color: var(--muted); grid-column: 2; margin-top: -6px; }
+
+  .run-btn {
+    margin-top: 12px;
+    padding: 8px 20px; border: 1px solid var(--accent);
+    background: rgba(59,130,246,.1); color: var(--accent);
+    border-radius: 4px; cursor: pointer;
+    font-family: var(--mono); font-size: 12px; font-weight: 600;
+    transition: background .15s;
+  }
+  .run-btn:hover { background: rgba(59,130,246,.2); }
+  .run-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  /* Response area */
+  .response-panel { margin-top: 16px; }
+  .response-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px;
+    background: var(--bg); border: 1px solid var(--border); border-bottom: none;
+    border-radius: 4px 4px 0 0;
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+  }
+  .status-ok   { color: var(--accent2); font-weight: 600; }
+  .status-err  { color: var(--error); font-weight: 600; }
+  .response-url { margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 400px; }
+  .response-body {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 0 0 4px 4px; padding: 12px;
+    font-family: var(--mono); font-size: 12px; line-height: 1.6;
+    max-height: 420px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;
+  }
+
+  /* SSE panel */
+  .sse-controls { display: flex; gap: 10px; align-items: center; }
+  .stop-btn {
+    padding: 8px 16px; border: 1px solid var(--error);
+    background: rgba(239,68,68,.1); color: var(--error);
+    border-radius: 4px; cursor: pointer;
+    font-family: var(--mono); font-size: 12px; font-weight: 600;
+    display: none;
+  }
+  .stop-btn.visible { display: inline-block; }
+  .sse-log {
+    margin-top: 12px;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 4px; padding: 12px;
+    font-family: var(--mono); font-size: 12px; line-height: 1.7;
+    height: 360px; overflow-y: auto;
+  }
+  .log-entry { display: flex; gap: 8px; padding: 2px 0; }
+  .log-ts    { color: var(--muted); flex-shrink: 0; }
+  .log-type  { flex-shrink: 0; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; }
+  .log-metrics   { background: rgba(59,130,246,.15); color: var(--accent); }
+  .log-heartbeat { background: rgba(100,116,139,.15); color: var(--muted); }
+  .log-error     { background: rgba(239,68,68,.15); color: var(--error); }
+  .log-connect   { background: rgba(16,185,129,.15); color: var(--accent2); }
+  .log-data  { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+
+  .empty-state { color: var(--muted); font-size: 12px; font-style: italic; }
+
+  /* JSON colours */
+  .json-key     { color: #93c5fd; }
+  .json-str     { color: #86efac; }
+  .json-num     { color: #fde68a; }
+  .json-bool    { color: #f9a8d4; }
+  .json-null    { color: var(--muted); }
+
+  /* ── Pokémon chart ── */
+  .poke-chart-wrap {
+    margin-top: 16px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px;
+  }
+  .poke-chart-title {
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+    margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+  }
+  .poke-chart-title strong { color: var(--text); font-size: 13px; }
+  .poke-chart-wrap { --sprite-size: 56px; }
+  .poke-row {
+    display: grid;
+    grid-template-columns: calc(var(--sprite-size) + 8px) 130px 1fr 48px;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+    animation: fadeIn .3s ease both;
+  }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:none} }
+  .poke-row img {
+    width: var(--sprite-size); height: var(--sprite-size);
+    image-rendering: pixelated;
+    filter: drop-shadow(0 0 4px rgba(0,0,0,.5));
+    transition: width .15s, height .15s;
+  }
+  .poke-sprite-placeholder {
+    width: var(--sprite-size); height: var(--sprite-size);
+    display: flex; align-items: center; justify-content: center; font-size: 20px;
+  }
+  .sprite-scale-control {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+  }
+  .sprite-scale-control input[type=range] {
+    -webkit-appearance: none; appearance: none;
+    width: 90px; height: 4px;
+    background: var(--border); border-radius: 2px; outline: none; cursor: pointer;
+  }
+  .sprite-scale-control input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--accent); cursor: pointer;
+  }
+  .sprite-scale-val { min-width: 28px; color: var(--text); }
+  .poke-name-cell {
+    display: flex; flex-direction: column; justify-content: center; gap: 3px;
+    min-width: 0;
+  }
+  .poke-name {
+    font-family: var(--mono); font-size: 12px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .poke-types { display: flex; gap: 3px; flex-wrap: wrap; }
+  .poke-type-badge {
+    font-family: var(--mono); font-size: 9px; font-weight: 600;
+    padding: 1px 5px; border-radius: 3px;
+    text-transform: uppercase; letter-spacing: .04em;
+    box-shadow: 0 0 0 1px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.15);
+  }
+  .poke-bar-track {
+    background: var(--surface);
+    border-radius: 3px; height: 14px; overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .poke-bar-fill {
+    height: 100%; border-radius: 3px;
+    background: linear-gradient(90deg, var(--accent) 0%, #60a5fa 100%);
+    transition: width .6s cubic-bezier(.4,0,.2,1);
+  }
+  .poke-count {
+    font-family: var(--mono); font-size: 11px;
+    color: var(--muted); text-align: right;
+  }
+  .poke-tabs {
+    display: flex; gap: 4px; margin-bottom: 12px;
+  }
+  .poke-tab {
+    padding: 4px 12px; border-radius: 4px; border: 1px solid var(--border);
+    background: none; color: var(--muted); font-family: var(--mono); font-size: 11px;
+    cursor: pointer; transition: all .15s;
+  }
+  .poke-tab.active { background: rgba(59,130,246,.15); border-color: var(--accent); color: var(--accent); }
+  .poke-show-more {
+    margin-top: 10px; width: 100%; padding: 7px;
+    background: none; border: 1px dashed var(--border);
+    color: var(--muted); font-family: var(--mono); font-size: 11px;
+    border-radius: 4px; cursor: pointer; transition: border-color .15s;
+  }
+  .poke-show-more:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── JSON dropdown ── */
+  .json-dropdown { margin-top: 16px; }
+  .json-dropdown-summary {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 14px;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 4px; cursor: pointer;
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+    list-style: none; user-select: none;
+    transition: color .15s, border-color .15s;
+  }
+  .json-dropdown-summary::-webkit-details-marker { display: none; }
+  .json-dropdown-summary:hover { color: var(--text); border-color: var(--accent); }
+  .json-dropdown[open] .json-dropdown-summary {
+    border-radius: 4px 4px 0 0;
+    border-bottom-color: transparent;
+    color: var(--text);
+  }
+  .json-dropdown[open] .response-panel { margin-top: 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="logo">READ API</span>
+  <span class="sep">|</span>
+  <span class="subtitle">Explorer</span>
+  <div class="sse-badge">
+    <div class="dot" id="sseDot"></div>
+    <span id="sseStatus">SSE disconnected</span>
+  </div>
+</header>
+
+<aside>
+  <div class="section-label">Endpoints</div>
+
+  <button class="endpoint-btn active" onclick="selectEndpoint('hello')" id="btn-hello">
+    <span class="method-tag">GET</span>/hello
+  </button>
+  <button class="endpoint-btn" onclick="selectEndpoint('aggregators')" id="btn-aggregators">
+    <span class="method-tag">GET</span>/aggregators
+  </button>
+  <button class="endpoint-btn" onclick="selectEndpoint('devices')" id="btn-devices">
+    <span class="method-tag">GET</span>/devices
+  </button>
+  <button class="endpoint-btn" onclick="selectEndpoint('metrics')" id="btn-metrics">
+    <span class="method-tag">GET</span>/metrics
+  </button>
+  <button class="endpoint-btn" onclick="selectEndpoint('pc_info')" id="btn-pc_info">
+    <span class="method-tag">GET</span>/pc_info
+  </button>
+  <button class="endpoint-btn" onclick="selectEndpoint('pokemon_info')" id="btn-pokemon_info">
+    <span class="method-tag">GET</span>/pokemon_info
+  </button>
+
+  <div class="section-label" style="margin-top:12px;">Live</div>
+  <button class="endpoint-btn" onclick="selectEndpoint('stream')" id="btn-stream">
+    <span class="method-tag sse-tag">SSE</span>/stream
+  </button>
+
+  <div class="section-label" style="margin-top:20px;">Server</div>
+  <div style="padding: 4px 16px;">
+    <label class="param-label" style="display:block; margin-bottom:4px;">Base URL</label>
+    <input class="param-input" id="baseUrl" value="http://localhost:5002" style="width:100%;" oninput="saveBaseUrl()" />
+  </div>
+</aside>
+
+<main id="main">
+  <!-- injected by JS -->
+</main>
+
+<script>
+const BASE_URL_KEY = 'readapi_base_url';
+const endpointEl = document.getElementById('main');
+let activeEndpoint = 'hello';
+let sseSource = null;
+
+function saveBaseUrl() {
+  localStorage.setItem(BASE_URL_KEY, document.getElementById('baseUrl').value);
+}
+function getBase() {
+  return document.getElementById('baseUrl').value.replace(/\/$/, '');
+}
+
+/* ── Endpoint definitions ── */
+const endpoints = {
+  hello: {
+    title: '/hello',
+    desc: 'Health check',
+    params: [],
+    build: () => `${getBase()}/hello`,
+  },
+  aggregators: {
+    title: '/aggregators',
+    desc: 'List all aggregators, or look one up by GUID',
+    params: [
+      { id: 'agg_guid', label: 'guid', placeholder: 'optional', hint: 'Filter to a single aggregator by GUID' }
+    ],
+    build: () => {
+      const g = v('agg_guid');
+      return `${getBase()}/aggregators` + (g ? `?guid=${encodeURIComponent(g)}` : '');
+    },
+  },
+  devices: {
+    title: '/devices',
+    desc: 'List devices for an aggregator',
+    params: [
+      { id: 'dev_agg_guid', label: 'aggregator_guid', placeholder: 'required', hint: 'GUID of the parent aggregator' },
+      { id: 'dev_name',     label: 'name',             placeholder: 'optional', hint: 'Filter by device name' },
+    ],
+    build: () => {
+      const g = v('dev_agg_guid'), n = v('dev_name');
+      let url = `${getBase()}/devices?aggregator_guid=${encodeURIComponent(g)}`;
+      if (n) url += `&name=${encodeURIComponent(n)}`;
+      return url;
+    },
+  },
+  metrics: {
+    title: '/metrics',
+    desc: 'Query stored metric values with optional filters',
+    params: [
+      { id: 'm_guid',    label: 'guid',         placeholder: 'optional' },
+      { id: 'm_device',  label: 'device_name',  placeholder: 'optional' },
+      { id: 'm_min',     label: 'utc_date_min', placeholder: '2024-01-01 00:00:00', hint: 'Format: YYYY-MM-DD HH:MM:SS' },
+      { id: 'm_max',     label: 'utc_date_max', placeholder: '2024-12-31 23:59:59', hint: 'Format: YYYY-MM-DD HH:MM:SS' },
+    ],
+    build: () => {
+      const params = [];
+      if (v('m_guid'))   params.push(`guid=${encodeURIComponent(v('m_guid'))}`);
+      if (v('m_device')) params.push(`device_name=${encodeURIComponent(v('m_device'))}`);
+      if (v('m_min'))    params.push(`utc_date_min=${encodeURIComponent(v('m_min'))}`);
+      if (v('m_max'))    params.push(`utc_date_max=${encodeURIComponent(v('m_max'))}`);
+      return `${getBase()}/metrics` + (params.length ? '?' + params.join('&') : '');
+    },
+  },
+  pc_info: {
+    title: '/pc_info',
+    desc: 'Live hardware snapshot from the server machine',
+    params: [],
+    build: () => `${getBase()}/pc_info`,
+  },
+  pokemon_info: {
+    title: '/pokemon_info',
+    desc: 'Pokémon usage / move counts from recent Showdown replays',
+    params: [
+      { id: 'pk_format', label: 'format', placeholder: 'gen9ou',  hint: 'e.g. gen9ou, gen9uu, gen9randombattle' },
+      { id: 'pk_type', label: 'type', select: ['mons', 'move'] },
+    ],
+    build: () => {
+      const f = v('pk_format') || 'gen9ou', t = v('pk_type') || 'mons';
+      return `${getBase()}/pokemon_info?format=${encodeURIComponent(f)}&type=${encodeURIComponent(t)}`;
+    },
+  },
+  stream: {
+    title: '/stream',
+    desc: 'Server-Sent Events — live push on every ingest commit',
+    sse: true,
+  },
+};
+
+function v(id) {
+  const el = document.getElementById(id);
+  return el ? el.value.trim() : '';
+}
+
+/* ── Routing ── */
+function selectEndpoint(name) {
+  activeEndpoint = name;
+  document.querySelectorAll('.endpoint-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-' + name).classList.add('active');
+  render();
+}
+
+function render() {
+  const ep = endpoints[activeEndpoint];
+  endpointEl.innerHTML = ep.sse ? renderSSEPanel(ep) : renderRestPanel(ep);
+}
+
+/* ── REST panel ── */
+function renderRestPanel(ep) {
+  const paramsHTML = ep.params.length ? `
+    <div class="params-grid">
+      ${ep.params.map(p => `
+        <div class="param-row">
+          <label class="param-label" for="${p.id}">${p.label}</label>
+          ${p.select
+            ? `<select class="param-input" id="${p.id}">${p.select.map(o => `<option value="${o}">${o}</option>`).join('')}</select>`
+            : `<input class="param-input" id="${p.id}" placeholder="${p.placeholder || ''}" />`
+          }
+        </div>
+        ${p.hint ? `<div class="param-row"><span></span><span class="param-hint">${p.hint}</span></div>` : ''}
+      `).join('')}
+    </div>` : '<span class="empty-state">No parameters</span>';
+
+  return `
+    <div class="panel">
+      <div class="panel-header">
+        <span class="method-tag">GET</span>
+        <span class="panel-title">${ep.title}</span>
+        <span class="panel-desc">${ep.desc}</span>
+      </div>
+      <div class="panel-body">
+        ${paramsHTML}
+        <button class="run-btn" id="runBtn" onclick="runRequest()">▶ Send Request</button>
+        <div id="responseArea"></div>
+      </div>
+    </div>`;
+}
+
+async function runRequest() {
+  const ep = endpoints[activeEndpoint];
+  const btn = document.getElementById('runBtn');
+  btn.disabled = true; btn.textContent = '⏳ Sending…';
+
+  let url;
+  try { url = ep.build(); } catch(e) {
+    showResponse(null, null, e.message); btn.disabled = false; btn.textContent = '▶ Send Request'; return;
+  }
+
+  const t0 = performance.now();
+  try {
+    const res = await fetch(url);
+    const ms  = Math.round(performance.now() - t0);
+    const json = await res.json();
+    const isPoke = activeEndpoint === 'pokemon_info' && res.ok && json.data;
+    if (isPoke) {
+      renderPokeChart(json.data, json.type || v('pk_type') || 'mons');
+      showResponse(res.status, url, json, ms, true);
+    } else {
+      showResponse(res.status, url, json, ms, false);
+    }
+  } catch(e) {
+    showResponse(null, url, { error: e.message }, undefined, false);
+  }
+  btn.disabled = false; btn.textContent = '▶ Send Request';
+}
+
+function showResponse(status, url, data, ms, asDropdown = false) {
+  const area = document.getElementById('responseArea');
+  const ok = status && status < 400;
+  const statusHtml = status
+    ? `<span class="${ok ? 'status-ok' : 'status-err'}">${status}</span>`
+    : `<span class="status-err">ERR</span>`;
+
+  const inner = `
+    <div class="response-bar">
+      ${statusHtml}
+      ${ms !== undefined ? `<span>${ms}ms</span>` : ''}
+      ${url ? `<span class="response-url">${url}</span>` : ''}
+    </div>
+    <div class="response-body">${syntaxHighlight(data)}</div>`;
+
+  if (asDropdown) {
+    area.innerHTML = `<details class="json-dropdown">
+      <summary class="json-dropdown-summary">&#9654; Raw JSON response</summary>
+      <div class="response-panel" style="margin-top:0;border-radius:0 0 4px 4px;">${inner}</div>
+    </details>`;
+  } else {
+    area.innerHTML = `<div class="response-panel">${inner}</div>`;
+  }
+}
+
+/* ── SSE panel ── */
+function renderSSEPanel(ep) {
+  return `
+    <div class="panel">
+      <div class="panel-header">
+        <span class="method-tag sse-tag">SSE</span>
+        <span class="panel-title">${ep.title}</span>
+        <span class="panel-desc">${ep.desc}</span>
+      </div>
+      <div class="panel-body">
+        <div class="sse-controls">
+          <button class="run-btn" id="sseStartBtn" onclick="startSSE()">▶ Connect</button>
+          <button class="stop-btn" id="sseStopBtn" onclick="stopSSE()">■ Disconnect</button>
+        </div>
+        <div class="sse-log" id="sseLog"><span class="empty-state">Not connected. Click Connect to open the SSE stream.</span></div>
+      </div>
+    </div>`;
+}
+
+function startSSE() {
+  if (sseSource) stopSSE();
+  const url = `${getBase()}/stream`;
+  sseSource = new EventSource(url);
+
+  setSseStatus('connecting');
+  logSSE('connect', `Connecting to ${url}`, 'log-connect');
+
+  sseSource.onopen = () => {
+    setSseStatus('live');
+    logSSE('connect', 'Stream opened', 'log-connect');
+  };
+
+  sseSource.addEventListener('metrics', e => {
+    const data = JSON.parse(e.data);
+    const aggs = data.aggregators || [];
+    const summary = `${aggs.length} aggregator(s)` + (aggs[0] ? ` — ${aggs[0].name || aggs[0].guid}` : '');
+    logSSE('metrics', summary, 'log-metrics');
+  });
+
+  sseSource.addEventListener('heartbeat', () => {
+    logSSE('heartbeat', 'keepalive', 'log-heartbeat');
+  });
+
+  sseSource.addEventListener('error', e => {
+    logSSE('error', e.data || 'stream error', 'log-error');
+  });
+
+  sseSource.onerror = () => {
+    setSseStatus('error');
+    logSSE('error', 'Connection lost or refused', 'log-error');
+  };
+
+  document.getElementById('sseStopBtn').classList.add('visible');
+}
+
+function stopSSE() {
+  if (sseSource) { sseSource.close(); sseSource = null; }
+  setSseStatus('off');
+  logSSE('connect', 'Disconnected', 'log-connect');
+  const stopBtn = document.getElementById('sseStopBtn');
+  if (stopBtn) stopBtn.classList.remove('visible');
+}
+
+function setSseStatus(state) {
+  const dot = document.getElementById('sseDot');
+  const txt = document.getElementById('sseStatus');
+  dot.className = 'dot';
+  if (state === 'live') { dot.classList.add('live'); txt.textContent = 'SSE connected'; }
+  else if (state === 'error') { dot.classList.add('error'); txt.textContent = 'SSE error'; }
+  else if (state === 'connecting') { txt.textContent = 'SSE connecting…'; }
+  else { txt.textContent = 'SSE disconnected'; }
+}
+
+function logSSE(type, message, cls) {
+  const log = document.getElementById('sseLog');
+  if (!log) return;
+  const wasEmpty = log.querySelector('.empty-state');
+  if (wasEmpty) log.innerHTML = '';
+
+  const ts = new Date().toLocaleTimeString('en-GB', { hour12: false });
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  entry.innerHTML = `<span class="log-ts">${ts}</span><span class="log-type ${cls}">${type}</span><span class="log-data">${escHtml(message)}</span>`;
+  log.appendChild(entry);
+  log.scrollTop = log.scrollHeight;
+}
+
+/* ── Pokémon chart ── */
+let pokeAllData = [];
+let pokeVisible = 20;
+let pokeDataType = 'mons';
+
+// Cache so we don't re-fetch the same slug twice
+const pokeCache = {};
+
+const TYPE_COLORS = {
+  normal:   { bg: '#A8A878', text: '#fff' },
+  fire:     { bg: '#F08030', text: '#fff' },
+  water:    { bg: '#6890F0', text: '#fff' },
+  electric: { bg: '#F8D030', text: '#333' },
+  grass:    { bg: '#78C850', text: '#fff' },
+  ice:      { bg: '#98D8D8', text: '#333' },
+  fighting: { bg: '#C03028', text: '#fff' },
+  poison:   { bg: '#A040A0', text: '#fff' },
+  ground:   { bg: '#E0C068', text: '#333' },
+  flying:   { bg: '#A890F0', text: '#fff' },
+  psychic:  { bg: '#F85888', text: '#fff' },
+  bug:      { bg: '#A8B820', text: '#fff' },
+  rock:     { bg: '#B8A038', text: '#fff' },
+  ghost:    { bg: '#705898', text: '#fff' },
+  dragon:   { bg: '#7038F8', text: '#fff' },
+  dark:     { bg: '#705848', text: '#fff' },
+  steel:    { bg: '#B8B8D0', text: '#333' },
+  fairy:    { bg: '#EE99AC', text: '#333' },
+};
+
+function typeTag(t) {
+  const c = TYPE_COLORS[t] || { bg: '#888', text: '#fff' };
+  return `<span class="poke-type-badge" style="background:${c.bg};color:${c.text};">${t}</span>`;
+}
+
+function pokeSlug(name) {
+  return name.toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[.''\`:']/g, '')
+    .replace(/\u2019/g, '')
+    .replace(/\u2018/g, '')
+    .replace(/♀/g, '-f')
+    .replace(/♂/g, '-m')
+    .replace(/-(mega|alola|galar|hisui|paldea|origin|sky|land|heat|wash|frost|fan|mow|therian|black|white|resolute|pirouette|blade|shield|unbound|complete|dusk|dawn|midnight|midday|school|disguised|busted|original|zen|standard|hangry|full-belly|crowned|hero|single-strike|rapid-strike|ice-rider|shadow-rider|roaming|incarnate|primal|ultra|eternamax|starter|10|50).*$/, '')
+    .replace(/-+$/, '');
+}
+
+async function fetchPokeData(name) {
+  const slug = pokeSlug(name);
+  if (pokeCache[slug] !== undefined) return pokeCache[slug];
+  try {
+    const res  = await fetch(`https://pokeapi.co/api/v2/pokemon/${slug}`);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    const result = {
+      sprite: data.sprites?.front_default || '',
+      types:  data.types.map(t => t.type.name),
+    };
+    pokeCache[slug] = result;
+    return result;
+  } catch {
+    pokeCache[slug] = { sprite: '', types: [] };
+    return pokeCache[slug];
+  }
+}
+function renderPokeChart(data, type) {
+  pokeDataType = type;
+  pokeAllData  = Object.entries(data).sort((a,b) => b[1]-a[1]);
+  pokeVisible  = 20;
+
+  // Remove old chart if present
+  const existing = document.getElementById('pokeChartWrap');
+  if (existing) existing.remove();
+
+  const area = document.getElementById('responseArea');
+  const wrap = document.createElement('div');
+  wrap.id = 'pokeChartWrap';
+  wrap.className = 'poke-chart-wrap';
+  wrap.innerHTML = `
+    <div class="poke-chart-title">
+      <strong>${pokeAllData.length} ${type === 'move' ? 'moves' : 'Pokémon'}</strong>
+      <span>from recent replays — sorted by usage</span>
+      <div class="sprite-scale-control" style="margin-left:auto;">
+        <span>sprite size</span>
+        <input type="range" min="32" max="96" value="56" step="4" id="spriteSlider" oninput="updateSpriteSize(this.value)" />
+        <span class="sprite-scale-val" id="spriteSizeVal">56px</span>
+      </div>
+    </div>
+    <div id="pokeRows"></div>
+    <button class="poke-show-more" id="pokeMore" onclick="pokeShowMore()">Show more…</button>`;
+
+  // Insert chart BEFORE the response area
+  area.parentNode.insertBefore(wrap, area);
+
+  drawPokeRows();
+}
+
+function drawPokeRows() {
+  const container = document.getElementById('pokeRows');
+  const moreBtn   = document.getElementById('pokeMore');
+  const slice     = pokeAllData.slice(0, pokeVisible);
+  const maxVal    = pokeAllData[0]?.[1] || 1;
+
+  container.innerHTML = '';
+  slice.forEach(([name, count], i) => {
+    const pct  = Math.max(2, Math.round((count / maxVal) * 100));
+    const row  = document.createElement('div');
+    row.className = 'poke-row';
+    row.style.animationDelay = `${Math.min(i,10) * 20}ms`;
+
+    const isMove = pokeDataType === 'move';
+    const imgHtml = isMove
+      ? `<div class="poke-sprite-placeholder">⚡</div>`
+      : `<img id="sprite-${i}" src="" alt="${escHtml(name)}" title="${escHtml(name)}"
+             style="opacity:0;transition:opacity .2s;" />`;
+
+    row.innerHTML = `
+      ${imgHtml}
+      <div class="poke-name-cell">
+        <span class="poke-name" title="${escHtml(name)}">${escHtml(name)}</span>
+        <div class="poke-types" id="types-${i}"></div>
+      </div>
+      <div class="poke-bar-track"><div class="poke-bar-fill" style="width:${pct}%"></div></div>
+      <span class="poke-count">${count}</span>`;
+    container.appendChild(row);
+
+    // async load sprite + types
+    if (!isMove) {
+      fetchPokeData(name).then(({ sprite, types }) => {
+        const img = document.getElementById(`sprite-${i}`);
+        if (img) { img.src = sprite || 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/0.png'; img.style.opacity = '1'; }
+        const typesEl = document.getElementById(`types-${i}`);
+        if (typesEl && types.length) typesEl.innerHTML = types.map(typeTag).join('');
+      });
+    }
+  });
+
+  if (pokeVisible >= pokeAllData.length) {
+    moreBtn.style.display = 'none';
+  } else {
+    moreBtn.style.display = 'block';
+    moreBtn.textContent = `Show more… (${pokeAllData.length - pokeVisible} remaining)`;
+  }
+}
+
+function updateSpriteSize(val) {
+  const wrap = document.getElementById('pokeChartWrap');
+  if (wrap) wrap.style.setProperty('--sprite-size', val + 'px');
+  const label = document.getElementById('spriteSizeVal');
+  if (label) label.textContent = val + 'px';
+}
+
+function pokeShowMore() {
+  pokeVisible += 20;
+  drawPokeRows();
+}
+
+/* ── Syntax highlight ── */
+function syntaxHighlight(obj) {
+  const json = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
+  return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, match => {
+    if (/^"/.test(match)) {
+      if (/:$/.test(match)) return `<span class="json-key">${match}</span>`;
+      return `<span class="json-str">${match}</span>`;
+    }
+    if (/true|false/.test(match)) return `<span class="json-bool">${match}</span>`;
+    if (/null/.test(match)) return `<span class="json-null">${match}</span>`;
+    return `<span class="json-num">${match}</span>`;
+  });
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* ── Init ── */
+const saved = localStorage.getItem(BASE_URL_KEY);
+if (saved) document.getElementById('baseUrl').value = saved;
+render();
+</script>
+</body>
+</html>
