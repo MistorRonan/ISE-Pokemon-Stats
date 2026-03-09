@@ -444,9 +444,6 @@
   <button class="endpoint-btn active" onclick="selectEndpoint('hello')" id="btn-hello">
     <span class="method-tag">GET</span>/hello
   </button>
-  <button class="endpoint-btn" onclick="selectEndpoint('aggregators')" id="btn-aggregators">
-    <span class="method-tag">GET</span>/aggregators
-  </button>
   <button class="endpoint-btn" onclick="selectEndpoint('devices')" id="btn-devices">
     <span class="method-tag">GET</span>/devices
   </button>
@@ -497,17 +494,6 @@ const endpoints = {
     desc: 'Health check',
     params: [],
     build: () => `${getBase()}/hello`,
-  },
-  aggregators: {
-    title: '/aggregators',
-    desc: 'List all aggregators, or look one up by GUID',
-    params: [
-      { id: 'agg_guid', label: 'guid', placeholder: 'optional', hint: 'Filter to a single aggregator by GUID' }
-    ],
-    build: () => {
-      const g = v('agg_guid');
-      return `${getBase()}/aggregators` + (g ? `?guid=${encodeURIComponent(g)}` : '');
-    },
   },
   devices: {
     title: '/devices',
