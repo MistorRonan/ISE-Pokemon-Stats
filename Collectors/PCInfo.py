@@ -16,6 +16,7 @@ Collector interface (read by collectors/__init__.py):
 import sys
 import platform
 import psutil
+import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -41,44 +42,55 @@ multi_device: bool    = False  # collect() returns a single flat dict
 # ---------------------------------------------------------------------------
 
 def get_pc_usage_map() -> dict:
-    """Collect a snapshot of CPU, memory, disk, and process metrics from this
-    machine and return them as a flat dict of metric-name → value pairs."""
+    usage_map = {}
 
-    cpu_usage = psutil.cpu_percent(interval=0.1)
-    memory    = psutil.virtual_memory()
-    disk      = psutil.disk_usage('/')
+    try:
+        # --- 1. THREAD & PROCESS COUNTS ---
+        # Summing threads across all active processes
+        total_threads = 0
+        process_count = 0
+        for proc in psutil.process_iter(['num_threads']):
+            try:
+                total_threads += proc.info['num_threads'] or 0
+                process_count += 1
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass  # Process closed or restricted during scan
 
-    num_system_threads = 0
-    num_processes      = 0
-    for process in psutil.process_iter(['num_threads', 'name']):
+        usage_map.update({
+            "system-thread-count": total_threads,
+            "system-process-count": process_count
+        })
+
+        # --- 2. DISK & PARTITION DATA ---
         try:
-            num_system_threads += process.num_threads()
-            num_processes      += 1
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
-            continue
+            path = "C:\\" if sys.platform == "win32" else "/"
+            disk = psutil.disk_usage(path)
+            usage_map.update({
+                "disk-total-gb": disk.total // (1024 ** 3),
+                "disk-free-gb": disk.free // (1024 ** 3),
+                "disk-fstype": psutil.disk_partitions()[0].fstype  # e.g., NTFS or ext4
+            })
+        except Exception as e:
+            usage_map["disk-error"] = str(e)
 
-    return {
-        # CPU
-        "cpu-usage":           cpu_usage,
-        "cpu-cores":           psutil.cpu_count(),
+        # --- 3. SYSTEM UP-TIME & NETWORK ---
+        boot_time_timestamp = psutil.boot_time()
+        bt = datetime.datetime.fromtimestamp(boot_time_timestamp)
 
-        # Memory
-        "memory-usage":        memory.percent,
-        "memory-used-gb":      round(memory.used  / (1024 ** 3), 2),
-        "memory-total-gb":     round(memory.total / (1024 ** 3), 2),
-        "memory-available-gb": round(memory.available / (1024 ** 3), 2),
-        "used-ram-mb":         round(memory.used  / (1024 ** 2), 2),
-        "total-ram-mb":        round(memory.total / (1024 ** 2), 2),
+        # Network total bytes (Accumulated since boot, not current speed)
+        net_io = psutil.net_io_counters()
 
-        # Disk
-        "disk-usage":          disk.percent,
-        "disk-free-gb":        disk.free  // (1024 ** 3),
-        "disk-total-gb":       disk.total // (1024 ** 3),
+        usage_map.update({
+            "boot-time": bt.strftime("%Y-%m-%d %H:%M:%S"),
+            "net-total-sent-mb": round(net_io.bytes_sent / (1024 ** 2), 2),
+            "net-total-recv-mb": round(net_io.bytes_recv / (1024 ** 2), 2),
+            "users-logged-in": len(psutil.users())
+        })
 
-        # Processes
-        "num-system-threads":  num_system_threads,
-        "num-processes":       num_processes,
-    }
+    except Exception as e:
+        return {"error": f"Failed to collect metrics: {str(e)}"}
+
+    return usage_map
 
 
 def collect(param="") -> dict:

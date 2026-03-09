@@ -177,6 +177,80 @@
 
   .empty-state { color: var(--muted); font-size: 12px; font-style: italic; }
 
+  /* ── PC Info chart ── */
+  .pc-dashboard {
+    margin-top: 16px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .pc-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+  }
+  .pc-card-title {
+    font-family: var(--mono); font-size: 10px; font-weight: 600;
+    color: var(--muted); text-transform: uppercase; letter-spacing: .1em;
+    margin-bottom: 12px;
+  }
+  .pc-gauge-row {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 8px;
+  }
+  .pc-gauge-label {
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+    width: 120px; flex-shrink: 0;
+  }
+  .pc-gauge-track {
+    flex: 1; height: 10px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 5px; overflow: hidden;
+  }
+  .pc-gauge-fill {
+    height: 100%; border-radius: 5px;
+    transition: width .7s cubic-bezier(.4,0,.2,1);
+  }
+  .pc-gauge-val {
+    font-family: var(--mono); font-size: 11px;
+    color: var(--text); min-width: 44px; text-align: right;
+  }
+  .pc-stat-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  }
+  .pc-stat {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 4px; padding: 8px 10px;
+  }
+  .pc-stat-label {
+    font-family: var(--mono); font-size: 10px; color: var(--muted);
+    margin-bottom: 2px;
+  }
+  .pc-stat-value {
+    font-family: var(--mono); font-size: 15px; font-weight: 600; color: var(--text);
+  }
+  .pc-stat-unit {
+    font-size: 10px; color: var(--muted); margin-left: 2px;
+  }
+  .pc-ring-row {
+    display: flex; align-items: center; justify-content: space-around;
+    padding: 4px 0 8px;
+  }
+  .pc-ring-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .pc-ring-label { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+  .pc-ring {
+    position: relative; width: 72px; height: 72px;
+  }
+  .pc-ring svg { transform: rotate(-90deg); }
+  .pc-ring-track { fill: none; stroke: var(--border); stroke-width: 7; }
+  .pc-ring-fill  { fill: none; stroke-width: 7; stroke-linecap: round;
+    transition: stroke-dashoffset .8s cubic-bezier(.4,0,.2,1); }
+  .pc-ring-text {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--text);
+  }
+
   /* JSON colours */
   .json-key     { color: #93c5fd; }
   .json-str     { color: #86efac; }
@@ -184,119 +258,172 @@
   .json-bool    { color: #f9a8d4; }
   .json-null    { color: var(--muted); }
 
-  /* ── Pokémon chart ── */
-  .poke-chart-wrap {
+
+    .pc-dashboard {
     margin-top: 16px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .pc-section {
     background: var(--bg);
     border: 1px solid var(--border);
     border-radius: 6px;
-    padding: 16px;
+    padding: 14px 16px;
   }
-  .poke-chart-title {
-    font-family: var(--mono); font-size: 11px; color: var(--muted);
-    margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+  .pc-section-title {
+    font-family: var(--mono); font-size: 10px; font-weight: 600;
+    color: var(--muted); letter-spacing: .1em; text-transform: uppercase;
+    margin-bottom: 12px; display: flex; align-items: center; gap: 6px;
   }
-  .poke-chart-title strong { color: var(--text); font-size: 13px; }
-  .poke-chart-wrap { --sprite-size: 56px; }
-  .poke-row {
-    display: grid;
-    grid-template-columns: calc(var(--sprite-size) + 8px) 130px 1fr 48px;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 4px;
-    animation: fadeIn .3s ease both;
-  }
-  @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:none} }
-  .poke-row img {
-    width: var(--sprite-size); height: var(--sprite-size);
-    image-rendering: pixelated;
-    filter: drop-shadow(0 0 4px rgba(0,0,0,.5));
-    transition: width .15s, height .15s;
-  }
-  .poke-sprite-placeholder {
-    width: var(--sprite-size); height: var(--sprite-size);
-    display: flex; align-items: center; justify-content: center; font-size: 20px;
-  }
-  .sprite-scale-control {
-    display: flex; align-items: center; gap: 8px;
-    font-family: var(--mono); font-size: 11px; color: var(--muted);
-  }
-  .sprite-scale-control input[type=range] {
-    -webkit-appearance: none; appearance: none;
-    width: 90px; height: 4px;
-    background: var(--border); border-radius: 2px; outline: none; cursor: pointer;
-  }
-  .sprite-scale-control input[type=range]::-webkit-slider-thumb {
-    -webkit-appearance: none; appearance: none;
-    width: 12px; height: 12px; border-radius: 50%;
-    background: var(--accent); cursor: pointer;
-  }
-  .sprite-scale-val { min-width: 28px; color: var(--text); }
-  .poke-name-cell {
-    display: flex; flex-direction: column; justify-content: center; gap: 3px;
-    min-width: 0;
-  }
-  .poke-name {
-    font-family: var(--mono); font-size: 12px;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .poke-types { display: flex; gap: 3px; flex-wrap: wrap; }
-  .poke-type-badge {
-    font-family: var(--mono); font-size: 9px; font-weight: 600;
-    padding: 1px 5px; border-radius: 3px;
-    text-transform: uppercase; letter-spacing: .04em;
-    box-shadow: 0 0 0 1px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.15);
-  }
-  .poke-bar-track {
-    background: var(--surface);
-    border-radius: 3px; height: 14px; overflow: hidden;
-    border: 1px solid var(--border);
-  }
-  .poke-bar-fill {
-    height: 100%; border-radius: 3px;
-    background: linear-gradient(90deg, var(--accent) 0%, #60a5fa 100%);
-    transition: width .6s cubic-bezier(.4,0,.2,1);
-  }
-  .poke-count {
+  .pc-section-title .pc-icon { font-size: 13px; }
+  /* Gauge */
+  .pc-gauge-wrap { display: flex; flex-direction: column; gap: 10px; }
+  .pc-gauge-row { display: flex; flex-direction: column; gap: 4px; }
+  .pc-gauge-label {
+    display: flex; justify-content: space-between;
     font-family: var(--mono); font-size: 11px;
-    color: var(--muted); text-align: right;
   }
-  .poke-tabs {
-    display: flex; gap: 4px; margin-bottom: 12px;
+  .pc-gauge-name { color: var(--muted); }
+  .pc-gauge-val  { color: var(--text); font-weight: 500; }
+  .pc-gauge-track {
+    height: 10px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 5px; overflow: hidden;
   }
-  .poke-tab {
-    padding: 4px 12px; border-radius: 4px; border: 1px solid var(--border);
-    background: none; color: var(--muted); font-family: var(--mono); font-size: 11px;
-    cursor: pointer; transition: all .15s;
+  .pc-gauge-fill {
+    height: 100%; border-radius: 5px;
+    transition: width .7s cubic-bezier(.4,0,.2,1);
   }
-  .poke-tab.active { background: rgba(59,130,246,.15); border-color: var(--accent); color: var(--accent); }
-  .poke-show-more {
-    margin-top: 10px; width: 100%; padding: 7px;
-    background: none; border: 1px dashed var(--border);
-    color: var(--muted); font-family: var(--mono); font-size: 11px;
-    border-radius: 4px; cursor: pointer; transition: border-color .15s;
+  .fill-ok      { background: linear-gradient(90deg, #10b981, #34d399); }
+  .fill-warn    { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+  .fill-danger  { background: linear-gradient(90deg, #ef4444, #f87171); }
+  /* Stat grid */
+  .pc-stat-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
   }
-  .poke-show-more:hover { border-color: var(--accent); color: var(--accent); }
+  .pc-stat {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 4px; padding: 8px 10px;
+  }
+  .pc-stat-label { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-bottom: 3px; }
+  .pc-stat-value { font-family: var(--mono); font-size: 16px; font-weight: 600; color: var(--text); }
+  .pc-stat-unit  { font-size: 11px; color: var(--muted); font-weight: 400; }
 
-  /* ── JSON dropdown ── */
-  .json-dropdown { margin-top: 16px; }
-  .json-dropdown-summary {
-    display: flex; align-items: center; gap: 8px;
-    padding: 9px 14px;
-    background: var(--bg); border: 1px solid var(--border);
-    border-radius: 4px; cursor: pointer;
-    font-family: var(--mono); font-size: 11px; color: var(--muted);
-    list-style: none; user-select: none;
-    transition: color .15s, border-color .15s;
-  }
-  .json-dropdown-summary::-webkit-details-marker { display: none; }
-  .json-dropdown-summary:hover { color: var(--text); border-color: var(--accent); }
-  .json-dropdown[open] .json-dropdown-summary {
-    border-radius: 4px 4px 0 0;
-    border-bottom-color: transparent;
-    color: var(--text);
-  }
-  .json-dropdown[open] .response-panel { margin-top: 0; }
+  /* ── Pokémon chart ── */
+    .poke-chart-wrap {
+      margin-top: 16px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px;
+    }
+    .poke-chart-title {
+      font-family: var(--mono); font-size: 11px; color: var(--muted);
+      margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+    }
+    .poke-chart-title strong { color: var(--text); font-size: 13px; }
+    .poke-chart-wrap { --sprite-size: 56px; }
+    .poke-row {
+      display: grid;
+      grid-template-columns: calc(var(--sprite-size) + 8px) 130px 1fr 48px;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+      animation: fadeIn .3s ease both;
+    }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:none} }
+    .poke-row img {
+      width: var(--sprite-size); height: var(--sprite-size);
+      image-rendering: pixelated;
+      filter: drop-shadow(0 0 4px rgba(0,0,0,.5));
+      transition: width .15s, height .15s;
+    }
+    .poke-sprite-placeholder {
+      width: var(--sprite-size); height: var(--sprite-size);
+      display: flex; align-items: center; justify-content: center; font-size: 20px;
+    }
+    .sprite-scale-control {
+      display: flex; align-items: center; gap: 8px;
+      font-family: var(--mono); font-size: 11px; color: var(--muted);
+    }
+    .sprite-scale-control input[type=range] {
+      -webkit-appearance: none; appearance: none;
+      width: 90px; height: 4px;
+      background: var(--border); border-radius: 2px; outline: none; cursor: pointer;
+    }
+    .sprite-scale-control input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 12px; height: 12px; border-radius: 50%;
+      background: var(--accent); cursor: pointer;
+    }
+    .sprite-scale-val { min-width: 28px; color: var(--text); }
+    .poke-name-cell {
+      display: flex; flex-direction: column; justify-content: center; gap: 3px;
+      min-width: 0;
+    }
+    .poke-name {
+      font-family: var(--mono); font-size: 12px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .poke-types { display: flex; gap: 3px; flex-wrap: wrap; }
+    .poke-type-badge {
+      font-family: var(--mono); font-size: 9px; font-weight: 600;
+      padding: 1px 5px; border-radius: 3px;
+      text-transform: uppercase; letter-spacing: .04em;
+      box-shadow: 0 0 0 1px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.15);
+    }
+    .poke-bar-track {
+      background: var(--surface);
+      border-radius: 3px; height: 14px; overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .poke-bar-fill {
+      height: 100%; border-radius: 3px;
+      background: linear-gradient(90deg, var(--accent) 0%, #60a5fa 100%);
+      transition: width .6s cubic-bezier(.4,0,.2,1);
+    }
+    .poke-count {
+      font-family: var(--mono); font-size: 11px;
+      color: var(--muted); text-align: right;
+    }
+    .poke-tabs {
+      display: flex; gap: 4px; margin-bottom: 12px;
+    }
+    .poke-tab {
+      padding: 4px 12px; border-radius: 4px; border: 1px solid var(--border);
+      background: none; color: var(--muted); font-family: var(--mono); font-size: 11px;
+      cursor: pointer; transition: all .15s;
+    }
+    .poke-tab.active { background: rgba(59,130,246,.15); border-color: var(--accent); color: var(--accent); }
+    .poke-show-more {
+      margin-top: 10px; width: 100%; padding: 7px;
+      background: none; border: 1px dashed var(--border);
+      color: var(--muted); font-family: var(--mono); font-size: 11px;
+      border-radius: 4px; cursor: pointer; transition: border-color .15s;
+    }
+    .poke-show-more:hover { border-color: var(--accent); color: var(--accent); }
+  
+    /* ── JSON dropdown ── */
+    .json-dropdown { margin-top: 16px; }
+    .json-dropdown-summary {
+      display: flex; align-items: center; gap: 8px;
+      padding: 9px 14px;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 4px; cursor: pointer;
+      font-family: var(--mono); font-size: 11px; color: var(--muted);
+      list-style: none; user-select: none;
+      transition: color .15s, border-color .15s;
+    }
+    .json-dropdown-summary::-webkit-details-marker { display: none; }
+    .json-dropdown-summary:hover { color: var(--text); border-color: var(--accent); }
+    .json-dropdown[open] .json-dropdown-summary {
+      border-radius: 4px 4px 0 0;
+      border-bottom-color: transparent;
+      color: var(--text);
+    }
+    .json-dropdown[open] .response-panel { margin-top: 0; }
+  
+    /* ── PC Info chart ── */
 </style>
 </head>
 <body>
@@ -350,6 +477,7 @@
 </main>
 
 <script>
+
 const BASE_URL_KEY = 'readapi_base_url';
 const endpointEl = document.getElementById('main');
 let activeEndpoint = 'hello';
@@ -503,8 +631,12 @@ async function runRequest() {
     const ms  = Math.round(performance.now() - t0);
     const json = await res.json();
     const isPoke = activeEndpoint === 'pokemon_info' && res.ok && json.data;
+    const isPc   = activeEndpoint === 'pc_info'      && res.ok && json.data;
     if (isPoke) {
       renderPokeChart(json.data, json.type || v('pk_type') || 'mons');
+      showResponse(res.status, url, json, ms, true);
+    } else if (isPc) {
+      renderPcChart(json.data);
       showResponse(res.status, url, json, ms, true);
     } else {
       showResponse(res.status, url, json, ms, false);
@@ -625,6 +757,101 @@ function logSSE(type, message, cls) {
   entry.innerHTML = `<span class="log-ts">${ts}</span><span class="log-type ${cls}">${type}</span><span class="log-data">${escHtml(message)}</span>`;
   log.appendChild(entry);
   log.scrollTop = log.scrollHeight;
+}
+
+/* ── PC Info chart ── */
+function fillClass(pct) {
+  if (pct >= 85) return 'fill-danger';
+  if (pct >= 60) return 'fill-warn';
+  return 'fill-ok';
+}
+
+function gauge(label, pct, detail) {
+  const cls = fillClass(pct);
+  return `
+    <div class="pc-gauge-row">
+      <div class="pc-gauge-label">
+        <span class="pc-gauge-name">${label}</span>
+        <span class="pc-gauge-val">${pct}%${detail ? ' <span style="color:var(--muted);font-weight:400;">— ' + detail + '</span>' : ''}</span>
+      </div>
+      <div class="pc-gauge-track">
+        <div class="pc-gauge-fill ${cls}" style="width:${pct}%"></div>
+      </div>
+    </div>`;
+}
+
+function stat(label, value, unit) {
+  return `
+    <div class="pc-stat">
+      <div class="pc-stat-label">${label}</div>
+      <div class="pc-stat-value">${value}<span class="pc-stat-unit"> ${unit}</span></div>
+    </div>`;
+}
+
+function renderPcChart(data) {
+  const existing = document.getElementById('pcDashboard');
+  if (existing) existing.remove();
+
+  // Handle error payload
+  if (data.error) {
+    const wrap = document.createElement('div');
+    wrap.id = 'pcDashboard';
+    wrap.innerHTML = `<div class="pc-section" style="margin-top:16px;color:var(--error);font-family:var(--mono);font-size:12px;">⚠ ${data.error}</div>`;
+    document.getElementById('responseArea').parentNode.insertBefore(wrap, document.getElementById('responseArea'));
+    return;
+  }
+
+  const diskFreeGb  = data['disk-free-gb']  ?? '?';
+  const diskTotalGb = data['disk-total-gb'] ?? '?';
+  const diskFstype  = data['disk-fstype']   ? ` (${data['disk-fstype']})` : '';
+  const bootTime    = data['boot-time']     ?? '—';
+  const netSent     = data['net-total-sent-mb'] ?? '?';
+  const netRecv     = data['net-total-recv-mb'] ?? '?';
+
+  const wrap = document.createElement('div');
+  wrap.id = 'pcDashboard';
+  wrap.innerHTML = `
+    <div class="pc-dashboard">
+
+      <div class="pc-section">
+        <div class="pc-section-title"><span class="pc-icon">💾</span>Disk${diskFstype}</div>
+        <div class="pc-gauge-wrap">
+          ${gauge('Usage', data['disk-usage'] ?? 0, `${diskFreeGb} GB free of ${diskTotalGb} GB`)}
+        </div>
+        <div class="pc-stat-grid" style="margin-top:12px;">
+          ${stat('Free',  diskFreeGb,  'GB')}
+          ${stat('Total', diskTotalGb, 'GB')}
+        </div>
+      </div>
+
+      <div class="pc-section">
+        <div class="pc-section-title"><span class="pc-icon">🔧</span>Processes</div>
+        <div class="pc-stat-grid">
+          ${stat('Processes', data['system-process-count'] ?? '?', '')}
+          ${stat('Threads',   data['system-thread-count']  ?? '?', '')}
+        </div>
+      </div>
+
+      <div class="pc-section">
+        <div class="pc-section-title"><span class="pc-icon">🌐</span>Network <span style="font-weight:300;font-size:9px;margin-left:4px;">since boot</span></div>
+        <div class="pc-stat-grid">
+          ${stat('Sent', netSent, 'MB')}
+          ${stat('Recv', netRecv, 'MB')}
+        </div>
+      </div>
+
+      <div class="pc-section">
+        <div class="pc-section-title"><span class="pc-icon">🕐</span>System</div>
+        <div class="pc-stat-grid" style="grid-template-columns:1fr;">
+          ${stat('Boot time', bootTime, '')}
+          ${stat('Users logged in', data['users-logged-in'] ?? '?', '')}
+        </div>
+      </div>
+
+    </div>`;
+
+  const area = document.getElementById('responseArea');
+  area.parentNode.insertBefore(wrap, area);
 }
 
 /* ── Pokémon chart ── */
