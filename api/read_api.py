@@ -23,7 +23,10 @@ Endpoints:
     GET /metrics?guid=<guid>&device_name=<n>&utc_date_min=<datetime>&utc_date_max=<datetime>
     GET /pc_info
     GET /pokemon_info?format=<format>&type=<mons|move>
-    GET /stream         — SSE push endpoint for the frontend
+    GET /stream              — SSE push endpoint for the frontend
+    GET /formats             — pinned formats + full available list
+    POST /formats/pin        — pin a format to start tracking
+    DELETE /formats/pin      — unpin a format
 """
 
 import sys
@@ -90,7 +93,9 @@ class ReadAPI:
         self.webserver.route("/pokemon_info", methods=['GET'])(self.get_pokemon_info)
         self.webserver.route("/stream",       methods=['GET'])(self.stream)
         self.webserver.route("/trainer_info", methods=['GET'])(self.get_trainer_info)
-        self.webserver.route("/trainers", methods=['GET'])(self.get_trainers)
+        self.webserver.route("/trainers",     methods=['GET'])(self.get_trainers)
+        self.webserver.route("/formats",      methods=['GET'])(self.get_formats)
+        self.webserver.route("/formats/pin",  methods=['POST', 'DELETE'])(self.pin_format)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     # Routes
@@ -376,6 +381,82 @@ class ReadAPI:
             return {'status': 'error', 'message': str(e)}, 500
         finally:
             session.close()
+
+
+    def get_formats(self):
+        """Return pinned formats (from config) and all available Showdown formats.
+        GET /formats
+        Response:
+            {
+                "status": "success",
+                "pinned":    ["gen9ou", "gen9vgc2026reg"],
+                "available": ["gen9ou", "gen9uu", ...]
+            }
+        """
+        try:
+            pinned    = list(self.config.pokemon.formats) if hasattr(self.config, 'pokemon') else []
+            available = PokemonInfo.showdown_formats
+            return {
+                'status':    'success',
+                'pinned':    pinned,
+                'available': available,
+            }, 200
+        except Exception as e:
+            self.logger.exception("Error in get_formats: %s", str(e))
+            return {'status': 'error', 'message': str(e)}, 500
+
+    def pin_format(self):
+        """Pin or unpin a Showdown format, persisting the change to config.json.
+        POST   /formats/pin?format=gen9uu   -- add format to tracked list
+        DELETE /formats/pin?format=gen9uu   -- remove format from tracked list
+
+        Response:
+            { "status": "success", "pinned": ["gen9ou", "gen9uu"] }
+        """
+        fmt = request.args.get('format')
+        if not fmt:
+            return {'status': 'error', 'message': 'format parameter is required'}, 400
+
+        if fmt not in PokemonInfo.showdown_formats:
+            return {'status': 'error', 'message': f'Unknown format: {fmt}'}, 400
+
+        try:
+            config_path = self._find_config_path()
+            with open(config_path, 'r', encoding='utf-8') as f:
+                raw = json.load(f)
+
+            pinned = raw.get('pokemon', {}).get('formats', [])
+
+            if request.method == 'POST':
+                if fmt not in pinned:
+                    pinned.append(fmt)
+            elif request.method == 'DELETE':
+                pinned = [f for f in pinned if f != fmt]
+
+            raw.setdefault('pokemon', {})['formats'] = pinned
+
+            with open(config_path, 'w', encoding='utf-8') as f:
+                json.dump(raw, f, indent=4)
+
+            # Reload config so this instance reflects the change immediately
+            self.config = Config(__file__)
+
+            self.logger.info("Format '%s' %s", fmt,
+                             'pinned' if request.method == 'POST' else 'unpinned')
+            return {'status': 'success', 'pinned': pinned}, 200
+
+        except Exception as e:
+            self.logger.exception("Error in pin_format: %s", str(e))
+            return {'status': 'error', 'message': str(e)}, 500
+
+    def _find_config_path(self) -> Path:
+        """Walk up from this file to find config.json -- same logic as Config()."""
+        here = Path(__file__).resolve()
+        for parent in [here, *here.parents]:
+            candidate = parent / 'config.json'
+            if candidate.exists():
+                return candidate
+        raise FileNotFoundError("config.json not found")
 
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

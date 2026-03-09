@@ -9,10 +9,12 @@ A valid collector module must expose:
     aggregator_name     str       name of the aggregator this data belongs to
     aggregator_guid     UUID      stable identity for the aggregator
     interval            int       seconds between collections (default: 60)
-    multi_device        bool      if True, collect() is called once per format
-                                  in config.pokemon.formats, each becoming its
-                                  own device. If False (default), collect() is
-                                  called once and stored under device_name.
+    multi_device        bool      if True, collect() is called once per format/device.
+                                  Each format becomes its own staggered thread.
+                                  If False (default), collect() is called once and
+                                  stored under device_name.
+    get_devices()       callable  optional — if defined, called instead of
+                                  config.pokemon.formats to get the device list.
     device_name         str       device name for single-device collectors
                                   (only required when multi_device is False)
 
@@ -63,34 +65,20 @@ for _loader, _module_name, _is_pkg in pkgutil.iter_modules(__path__):
 # Packaging helper
 # ---------------------------------------------------------------------------
 
-def _package(collector: dict, param="") -> str | None:
-    config = Config(__file__)
+def _package(collector: dict) -> str | None:
+    """Package a single-device collector's result into a snapshot JSON string.
 
-    if collector["multi_device"]:
-        # Use get_devices() if the collector defines it, otherwise fall back to config formats
-        import importlib
-        mod = importlib.import_module(f"collectors.{collector['source']}")
-        if hasattr(mod, 'get_devices'):
-            formats = mod.get_devices()
-        else:
-            formats = config.pokemon.formats if hasattr(config, 'pokemon') else []
+    Multi-device collectors are expanded into individual single-device entries
+    before this is called (see run_agent), so this function always handles
+    exactly one device at a time.
+    """
+    result = collector["func"](collector.get("param", ""))
+    if not result:
+        _logger.warning("Collector '%s' returned no data for device '%s'",
+                        collector["source"], collector.get("device_name", ""))
+        return None
 
-        device_metrics = {}
-        for device_name in formats:
-            result = collector["func"](device_name)
-            if result:
-                device_metrics[device_name] = result
-
-        if not device_metrics:
-            _logger.warning("Collector '%s' returned no data for any device", collector["source"])
-            return None
-
-    else:
-        result = collector["func"](param)
-        if not result:
-            _logger.warning("Collector '%s' returned no data", collector["source"])
-            return None
-        device_metrics = {collector["device_name"]: result}
+    device_metrics = {collector["device_name"]: result}
 
     return build_snapshot(
         aggregator_name=collector["aggregator_name"],
@@ -148,21 +136,31 @@ def run_all(param="") -> dict:
 # ---------------------------------------------------------------------------
 
 def _collector_loop(collector: dict, upload_queue: UploaderQueue):
-    """Thread target — runs a single collector on its own interval forever.
+    """Thread target — runs a single collector device on its own interval forever.
 
-    On each tick, packages the collected data and hands the resulting JSON
-    to the UploaderQueue. The queue handles all network communication,
-    retries, and backoff — this loop only concerns itself with collection.
+    Multi-device collectors are pre-expanded into one entry per device before
+    this is called, so each thread always owns exactly one device. An optional
+    startup delay staggers multi-device collectors evenly across their interval
+    so they don't all fire simultaneously.
 
     Args:
-        collector:    Collector descriptor dict from all_collectors
+        collector:    Collector descriptor dict (always single-device at this point)
         upload_queue: Shared UploaderQueue instance to hand snapshots to
     """
-    name     = collector["source"]
-    interval = collector["interval"]
+    name      = collector["source"]
+    device    = collector.get("device_name", "")
+    interval  = collector["interval"]
+    delay     = collector.get("delay", 0)
 
-    _logger.info("Starting collector '%s' with interval %ds", name, interval)
-    last_run = datetime.now() - timedelta(seconds=interval)  # fire immediately
+    _logger.info("Starting collector '%s' device '%s' (startup delay %ds, interval %ds)",
+                 name, device, delay, interval)
+
+    # Stagger startup — each format fires at a different offset within the hour
+    if delay > 0:
+        time.sleep(delay)
+
+    # Fire immediately after delay, then once per interval
+    last_run = datetime.now() - timedelta(seconds=interval)
 
     while True:
         time.sleep(0.5)
@@ -172,22 +170,73 @@ def _collector_loop(collector: dict, upload_queue: UploaderQueue):
                 raw_json = _package(collector)
                 if raw_json is None:
                     continue
-                # Hand off to the queue — non-blocking, returns immediately
                 upload_queue.enqueue(raw_json)
-                _logger.debug("Collector '%s' snapshot enqueued", name)
+                _logger.debug("Collector '%s' device '%s' snapshot enqueued", name, device)
             except Exception as e:
-                # Log but don't crash the thread — retries on next interval
-                _logger.exception("Collector '%s' failed during packaging: %s", name, str(e))
+                _logger.exception("Collector '%s' device '%s' failed during packaging: %s",
+                                  name, device, str(e))
+
+
+def _expand_collector(collector: dict, config: Config) -> list[dict]:
+    """Expand a multi_device collector into one entry per device, staggered.
+
+    For single-device collectors, returns a list with the original entry
+    (plus param="" and delay=0 for consistency).
+
+    For multi-device collectors, fetches the device list via get_devices()
+    if available, otherwise falls back to config.pokemon.formats. Each device
+    gets a startup delay so they fire evenly spread across the interval rather
+    than all at once.
+
+    Args:
+        collector: Collector descriptor dict from all_collectors
+        config:    Loaded Config instance
+
+    Returns:
+        List of expanded single-device collector dicts
+    """
+    if not collector["multi_device"]:
+        return [{**collector, "param": "", "delay": 0}]
+
+    mod = importlib.import_module(f"collectors.{collector['source']}")
+    if hasattr(mod, 'get_devices'):
+        devices = mod.get_devices()
+    else:
+        devices = config.pokemon.formats if hasattr(config, 'pokemon') else []
+
+    if not devices:
+        _logger.warning("Collector '%s' is multi_device but has no devices — skipping",
+                        collector["source"])
+        return []
+
+    n = len(devices)
+    expanded = []
+    for i, device_name in enumerate(devices):
+        # Spread startup delays evenly across the interval
+        delay = i * (collector["interval"] // n)
+        expanded.append({
+            **collector,
+            "multi_device": False,
+            "device_name":  device_name,
+            "param":        device_name,
+            "delay":        delay,
+        })
+
+    return expanded
 
 
 def run_agent(collector_names: list = None):
-    """Start the uploader queue and each collector in its own daemon thread,
+    """Start the uploader queue and each collector device in its own daemon thread,
     then block until the process is interrupted.
 
-    A single UploaderQueue is shared across all collectors. This means all
-    snapshots from all collectors flow through one background upload thread,
-    maintaining ordering and avoiding multiple simultaneous connections to
-    the ingest API.
+    Multi-device collectors (e.g. PokemonInfo, SupaInfo) are expanded into one
+    thread per device before startup. Devices within the same collector are
+    staggered evenly across the collector's interval so they don't all hit the
+    external API at the same moment.
+
+    A single UploaderQueue is shared across all threads. All snapshots flow
+    through one background upload thread, maintaining ordering and avoiding
+    multiple simultaneous connections to the ingest API.
 
     Args:
         collector_names: Optional list of module names to run
@@ -208,24 +257,33 @@ def run_agent(collector_names: list = None):
             + str([c["source"] for c in all_collectors])
         )
 
+    # Expand multi_device collectors into one entry per device
+    expanded_targets = []
+    for collector in targets:
+        expanded_targets.extend(_expand_collector(collector, config))
+
+    if not expanded_targets:
+        raise ValueError("No collector devices found after expansion.")
+
     # Start the shared uploader queue before any collector threads
     upload_queue = UploaderQueue(ingest_url=ingest_url)
     upload_queue.start()
 
-    # Start one collection thread per collector
+    # Start one thread per device
     threads = []
-    for collector in targets:
+    for collector in expanded_targets:
+        thread_name = f"{collector['source']}-{collector.get('device_name', '')}"
         t = threading.Thread(
             target=_collector_loop,
             args=(collector, upload_queue),
-            name=collector["source"],
+            name=thread_name,
             daemon=True
         )
         t.start()
         threads.append(t)
 
     _logger.info(
-        "Agent running %d collector(s): %s",
+        "Agent running %d collector thread(s): %s",
         len(threads),
         ", ".join(t.name for t in threads)
     )

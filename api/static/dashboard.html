@@ -499,6 +499,56 @@
   .pc-bar-val   { font-family: var(--mono); font-size: 11px; color: var(--text); text-align: right; }
   .pc-bar-unit  { color: var(--muted); font-size: 10px; }
 
+
+  /* ── Formats browser ── */
+  .formats-wrap { margin-top: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .formats-toolbar {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  }
+  .formats-search {
+    flex: 1; min-width: 160px;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+    color: var(--text); font-family: var(--mono); font-size: 12px;
+    padding: 6px 10px; outline: none;
+  }
+  .formats-search:focus { border-color: var(--accent); }
+  .formats-filter-btn {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
+    color: var(--muted); font-family: var(--mono); font-size: 11px;
+    padding: 5px 10px; cursor: pointer; transition: all .15s;
+    white-space: nowrap;
+  }
+  .formats-filter-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(59,130,246,.08); }
+  .formats-grid {
+    display: flex; flex-direction: column; gap: 4px;
+    max-height: 520px; overflow-y: auto;
+  }
+  .format-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+    font-family: var(--mono); font-size: 12px;
+    transition: border-color .15s;
+  }
+  .format-item:hover { border-color: var(--accent); }
+  .format-item.pinned { border-color: #10b981; background: rgba(16,185,129,.04); }
+  .format-name { flex: 1; color: var(--text); cursor: pointer; }
+  .format-name:hover { color: var(--accent); }
+  .pin-badge {
+    font-size: 10px; padding: 2px 7px; border-radius: 10px;
+    background: rgba(16,185,129,.15); color: #10b981;
+    font-weight: 600; letter-spacing: .04em;
+  }
+  .pin-btn {
+    background: none; border: 1px solid var(--border); border-radius: 4px;
+    color: var(--muted); font-family: var(--mono); font-size: 10px;
+    padding: 3px 8px; cursor: pointer; transition: all .15s; white-space: nowrap;
+  }
+  .pin-btn:hover { border-color: #10b981; color: #10b981; }
+  .pin-btn.pinned { border-color: #ef4444; color: #ef4444; }
+  .pin-btn.pinned:hover { background: rgba(239,68,68,.08); }
+  .formats-count { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+
 </style>
 </head>
 <body>
@@ -530,6 +580,9 @@
   </button>
   <button class="endpoint-btn" onclick="selectEndpoint('pokemon_info')" id="btn-pokemon_info">
     <span class="method-tag">GET</span>/pokemon_info
+  </button>
+  <button class="endpoint-btn" onclick="selectEndpoint('formats')" id="btn-formats">
+    <span class="method-tag">GET</span>/formats
   </button>
 
   <div class="section-label" style="margin-top:12px;">Mobile App</div>
@@ -646,6 +699,13 @@ const endpoints = {
       return `${getBase()}/trainer_info?trainer=${encodeURIComponent(t)}`;
     },
   },
+  formats: {
+    title: '/formats',
+    desc: 'Browse and pin Showdown formats for agent tracking',
+    params: [],
+    build: () => `${getBase()}/formats`,
+    custom: true,  // rendered by renderFormats(), not runRequest()
+  },
   stream: {
     title: '/stream',
     desc: 'Server-Sent Events — live push on every ingest commit',
@@ -721,6 +781,7 @@ async function runRequest() {
     const isPc      = activeEndpoint === 'pc_info'        && res.ok && json.data;
     const isTrainer = activeEndpoint === 'trainer_info'   && res.ok && json.party;
     const isTrainers= activeEndpoint === 'trainers'       && res.ok && json.trainers;
+    const isFormats = activeEndpoint === 'formats'        && res.ok && json.available;
     if (isPoke) {
       renderPokeChart(json.data, json.type || v('pk_type') || 'mons');
       showResponse(res.status, url, json, ms, true);
@@ -732,6 +793,9 @@ async function runRequest() {
       showResponse(res.status, url, json, ms, true);
     } else if (isTrainers) {
       renderTrainersList(json.trainers);
+      showResponse(res.status, url, json, ms, true);
+    } else if (isFormats) {
+      renderFormats(json.pinned, json.available);
       showResponse(res.status, url, json, ms, true);
     } else {
       showResponse(res.status, url, json, ms, false);
@@ -1232,6 +1296,100 @@ function renderTrainerParty(trainerName, party) {
       });
     });
   });
+}
+
+
+/* ── Formats browser ── */
+let _pinnedFormats  = [];
+let _allFormats     = [];
+let _formatsFilter  = 'all';   // 'all' | 'pinned'
+let _formatsSearch  = '';
+
+function renderFormats(pinned, available) {
+  _pinnedFormats = pinned  || [];
+  _allFormats    = available || [];
+
+  const existing = document.getElementById('formatsWrap');
+  if (existing) existing.remove();
+
+  const wrap = document.createElement('div');
+  wrap.id = 'formatsWrap';
+  wrap.innerHTML = `
+    <div class="formats-wrap">
+      <div class="formats-toolbar">
+        <input class="formats-search" id="fmtSearch" placeholder="Search formats…"
+               oninput="_formatsSearch=this.value; _drawFormats()" />
+        <button class="formats-filter-btn active" id="flt-all"
+                onclick="_setFormatFilter('all')">All</button>
+        <button class="formats-filter-btn" id="flt-pinned"
+                onclick="_setFormatFilter('pinned')">📌 Pinned</button>
+        <span class="formats-count" id="fmtCount"></span>
+      </div>
+      <div class="formats-grid" id="formatsGrid"></div>
+    </div>`;
+
+  document.getElementById('responseArea').parentNode.insertBefore(
+    wrap, document.getElementById('responseArea')
+  );
+  _drawFormats();
+}
+
+function _setFormatFilter(f) {
+  _formatsFilter = f;
+  document.querySelectorAll('.formats-filter-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('flt-' + f).classList.add('active');
+  _drawFormats();
+}
+
+function _drawFormats() {
+  const grid = document.getElementById('formatsGrid');
+  const count = document.getElementById('fmtCount');
+  if (!grid) return;
+
+  let list = _allFormats;
+  if (_formatsFilter === 'pinned') list = list.filter(f => _pinnedFormats.includes(f));
+  if (_formatsSearch) list = list.filter(f => f.toLowerCase().includes(_formatsSearch.toLowerCase()));
+
+  count.textContent = `${list.length} format${list.length !== 1 ? 's' : ''}`;
+
+  grid.innerHTML = list.map(fmt => {
+    const isPinned = _pinnedFormats.includes(fmt);
+    return `
+      <div class="format-item ${isPinned ? 'pinned' : ''}" id="fmt-row-${escHtml(fmt)}">
+        <span class="format-name" onclick="loadFormat('${escHtml(fmt)}')" title="View data">${escHtml(fmt)}</span>
+        ${isPinned ? '<span class="pin-badge">TRACKED</span>' : ''}
+        <button class="pin-btn ${isPinned ? 'pinned' : ''}"
+                onclick="togglePin('${escHtml(fmt)}', ${isPinned})">
+          ${isPinned ? '✕ Unpin' : '📌 Pin'}
+        </button>
+      </div>`;
+  }).join('');
+}
+
+async function togglePin(fmt, isPinned) {
+  const method = isPinned ? 'DELETE' : 'POST';
+  try {
+    const res  = await fetch(`${getBase()}/formats/pin?format=${encodeURIComponent(fmt)}`, { method });
+    const json = await res.json();
+    if (json.status === 'success') {
+      _pinnedFormats = json.pinned;
+      _drawFormats();
+    } else {
+      alert(`Error: ${json.message}`);
+    }
+  } catch(e) {
+    alert(`Request failed: ${e.message}`);
+  }
+}
+
+function loadFormat(fmt) {
+  // Switch to pokemon_info, fill format, run
+  selectEndpoint('pokemon_info');
+  setTimeout(() => {
+    const input = document.getElementById('pk_format');
+    if (input) input.value = fmt;
+    runRequest();
+  }, 50);
 }
 
 /* ── Syntax highlight ── */

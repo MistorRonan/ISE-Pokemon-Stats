@@ -1,28 +1,30 @@
 {
-  "pokemon": {
-    "interval": 3600,
-    "formats": [
-      "gen9ou",
-      "gen9vgc2026"
-    ]
-  },
-  "client": {
-    "interval": 30
-  },
-  "mobileapp":{
-    "interval":30
-  },
-  "ingest_api": {
-    "host": "http://localhost",
-    "port": 5001,
-    "debug": false
-  },
-  "read_api": {
-    "host": "http://localhost",
-    "port": 5002,
-    "debug": false
-  },
-  "database": {
-    "connection_string": "sqlite:///metrics.db"
-  }
+    "pokemon": {
+        "interval": 240,
+        "formats": [
+            "gen9vgc2026regi",
+            "gen9ou",
+            "gen8ou",
+            "gen4ou"
+        ]
+    },
+    "client": {
+        "interval": 30
+    },
+    "mobileapp": {
+        "interval": 30
+    },
+    "ingest_api": {
+        "host": "http://localhost",
+        "port": 5001,
+        "debug": false
+    },
+    "read_api": {
+        "host": "http://localhost",
+        "port": 5002,
+        "debug": false
+    },
+    "database": {
+        "connection_string": "sqlite:///metrics.db"
+    }
 }
