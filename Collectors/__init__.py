@@ -64,24 +64,27 @@ for _loader, _module_name, _is_pkg in pkgutil.iter_modules(__path__):
 # ---------------------------------------------------------------------------
 
 def _package(collector: dict, param="") -> str | None:
-    """Call a collector's collect() and package the result into a serialized
-    DTO_Aggregator JSON string using snapshot_builder.build_snapshot().
-
-    Handles both single-device and multi-device collectors transparently.
-    Returns None if no data was returned by the collector.
-    """
     config = Config(__file__)
 
     if collector["multi_device"]:
-        formats        = config.pokemon.formats if hasattr(config, 'pokemon') else []
+        # Use get_devices() if the collector defines it, otherwise fall back to config formats
+        import importlib
+        mod = importlib.import_module(f"collectors.{collector['source']}")
+        if hasattr(mod, 'get_devices'):
+            formats = mod.get_devices()
+        else:
+            formats = config.pokemon.formats if hasattr(config, 'pokemon') else []
+
         device_metrics = {}
-        for format_name in formats:
-            result = collector["func"](format_name)
+        for device_name in formats:
+            result = collector["func"](device_name)
             if result:
-                device_metrics[format_name] = result
+                device_metrics[device_name] = result
+
         if not device_metrics:
-            _logger.warning("Collector '%s' returned no data for any format", collector["source"])
+            _logger.warning("Collector '%s' returned no data for any device", collector["source"])
             return None
+
     else:
         result = collector["func"](param)
         if not result:

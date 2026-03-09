@@ -9,6 +9,9 @@
   "client": {
     "interval": 30
   },
+  "mobileapp":{
+    "interval":30
+  },
   "ingest_api": {
     "host": "http://localhost",
     "port": 5001,

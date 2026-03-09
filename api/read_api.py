@@ -89,6 +89,8 @@ class ReadAPI:
         self.webserver.route("/pc_info",      methods=['GET'])(self.get_pc_info)
         self.webserver.route("/pokemon_info", methods=['GET'])(self.get_pokemon_info)
         self.webserver.route("/stream",       methods=['GET'])(self.stream)
+        self.webserver.route("/trainer_info", methods=['GET'])(self.get_trainer_info)
+        self.webserver.route("/trainers", methods=['GET'])(self.get_trainers)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     # Routes
@@ -96,6 +98,20 @@ class ReadAPI:
 
     def hello(self):
         return {'message': 'Read API is running. See /metrics, /aggregators, /devices, /pc_info, /pokemon_info, /stream.'}
+
+    def stream(self):
+        """Server-Sent Events endpoint.
+        GET /stream
+        """
+        return Response(
+            stream_with_context(self._sse_generator()),
+            mimetype='text/event-stream',
+            headers={
+                'X-Accel-Buffering':           'no',
+                'Access-Control-Allow-Origin': '*',
+                'Cache-Control':               'no-cache',
+            }
+        )
 
     def get_aggregators(self):
         """Return all aggregators, or a single one by GUID.
@@ -177,58 +193,190 @@ class ReadAPI:
             session.close()
 
     def get_pc_info(self):
-        """Return a live hardware snapshot from this machine.
+        """Return the latest PC hardware snapshot from the database.
         GET /pc_info
         """
+        session = Session(self.engine)
         try:
-            return {'status': 'success', 'data': PCInfo.collect()}, 200
+            # Find the Betty_III device under its aggregator
+            device = (
+                session.query(Device)
+                .join(Aggregator)
+                .filter(Aggregator.guid == str(PCInfo.aggregator_guid))
+                .first()
+            )
+            if not device:
+                return {'status': 'error', 'message': 'No PC data found in database'}, 404
+
+            # Get the most recent snapshot
+            latest_snapshot = (
+                session.query(MetricSnapshot)
+                .filter_by(device_id=device.device_id)
+                .order_by(MetricSnapshot.client_utc_timestamp_epoch.desc())
+                .first()
+            )
+            if not latest_snapshot:
+                return {'status': 'error', 'message': 'No snapshots found'}, 404
+
+            # Rebuild flat dict of metric name -> value
+            metric_values = (
+                session.query(MetricValue)
+                .join(DeviceMetricType)
+                .filter(MetricValue.metric_snapshot_id == latest_snapshot.metric_snapshot_id)
+                .all()
+            )
+
+            data = {mv.device_metric_type.name: mv.value for mv in metric_values}
+
+            return {'status': 'success', 'data': data}, 200
+
         except Exception as e:
             self.logger.exception("Error in get_pc_info: %s", str(e))
             return {'status': 'error', 'message': str(e)}, 500
+        finally:
+            session.close()
 
     def get_pokemon_info(self):
-        """Return live Pokémon usage/move counts from recent Showdown replays.
+        """Return Pokémon usage counts summed across all stored snapshots.
         GET /pokemon_info?format=gen9ou&type=mons
         """
+        fmt  = request.args.get('format', 'gen9ou')
+        kind = request.args.get('type', 'mons')
+        session = Session(self.engine)
         try:
-            fmt  = request.args.get('format', 'gen9ou')
-            kind = request.args.get('type', 'mons')
-            data = PokemonInfo.collect(f"{fmt}|{kind}")
-            if data is None:
-                return {'status': 'error', 'message': f'No replay data returned for format {fmt}'}, 404
+            # Find the device matching the requested format under the PokemonShowdown aggregator
+            device = (
+                session.query(Device)
+                .join(Aggregator)
+                .filter(
+                    Aggregator.guid == 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+                    Device.name == fmt
+                )
+                .first()
+            )
+            if not device:
+                return {'status': 'error', 'message': f'No data found for format {fmt}'}, 404
+
+            # Sum metric values across ALL snapshots for this device, grouped by metric name
+            from sqlalchemy import func
+
+            results = (
+                session.query(
+                    DeviceMetricType.name,
+                    func.sum(MetricValue.value).label('total')
+                )
+                .join(MetricValue, DeviceMetricType.device_metric_type_id == MetricValue.device_metric_type_id)
+                .join(MetricSnapshot, MetricValue.metric_snapshot_id == MetricSnapshot.metric_snapshot_id)
+                .filter(MetricSnapshot.device_id == device.device_id)
+                .group_by(DeviceMetricType.name)
+                .order_by(func.sum(MetricValue.value).desc())
+                .all()
+            )
+
+            if not results:
+                return {'status': 'error', 'message': f'No snapshots found for format {fmt}'}, 404
+
+            data = {name: int(total) for name, total in results}
+
             return {'status': 'success', 'format': fmt, 'type': kind, 'data': data}, 200
+
         except Exception as e:
             self.logger.exception("Error in get_pokemon_info: %s", str(e))
             return {'status': 'error', 'message': str(e)}, 500
+        finally:
+            session.close()
 
-    def stream(self):
-        """Server-Sent Events endpoint. The frontend opens this connection once
-        and receives a push event automatically every time the ingest API
-        writes a new snapshot — no polling from the frontend required.
-
-        GET /stream
-
-        Frontend usage:
-            const source = new EventSource('http://localhost:5002/stream');
-            source.addEventListener('metrics', e => {
-                const data = JSON.parse(e.data);
-                // data.aggregators — re-render your UI here
-            });
-
-        Events emitted:
-            metrics   — full latest metrics payload (same shape as GET /metrics)
-            heartbeat — empty keepalive every 15s when no new data arrives
-            error     — if something goes wrong fetching metrics from the DB
+    def get_trainer_info(self):
+        """Return a trainer's current party grouped by generation.
+        GET /trainer_info?trainer=DavidM
         """
-        return Response(
-            stream_with_context(self._sse_generator()),
-            mimetype='text/event-stream',
-            headers={
-                'X-Accel-Buffering':        'no',   # disable nginx buffering
-                'Access-Control-Allow-Origin': '*',  # allow cross-origin frontend
-                'Cache-Control':            'no-cache',
-            }
-        )
+        trainer_name = request.args.get('trainer')
+        if not trainer_name:
+            return {'status': 'error', 'message': 'trainer parameter is required'}, 400
+
+        session = Session(self.engine)
+        try:
+            # Find the device matching the trainer under the mobileapp aggregator
+            device = (
+                session.query(Device)
+                .join(Aggregator)
+                .filter(
+                    Aggregator.guid == 'b2c3d4e5-f6a7-8901-bcde-f12345678901',
+                    Device.name == trainer_name
+                )
+                .first()
+            )
+            if not device:
+                return {'status': 'error', 'message': f'No data found for trainer {trainer_name}'}, 404
+
+            # Get the most recent snapshot — party is current state, not cumulative
+            latest_snapshot = (
+                session.query(MetricSnapshot)
+                .filter_by(device_id=device.device_id)
+                .order_by(MetricSnapshot.client_utc_timestamp_epoch.desc())
+                .first()
+            )
+            if not latest_snapshot:
+                return {'status': 'error', 'message': f'No snapshots found for trainer {trainer_name}'}, 404
+
+            # Pull metric values for the latest snapshot
+            metric_values = (
+                session.query(MetricValue)
+                .join(DeviceMetricType)
+                .filter(MetricValue.metric_snapshot_id == latest_snapshot.metric_snapshot_id)
+                .all()
+            )
+
+            # Reconstruct { generation: [pokemon_names] } from "gen|pokemon" metric keys
+            party = {}
+            for mv in metric_values:
+                parts = mv.device_metric_type.name.split('|')
+                gen   = parts[0]
+                name  = parts[1] if len(parts) > 1 else 'unknown'
+                if gen not in party:
+                    party[gen] = []
+                party[gen].append(name)
+
+            return {
+                'status':  'success',
+                'trainer': trainer_name,
+                'party':   party,
+            }, 200
+
+        except Exception as e:
+            self.logger.exception("Error in get_trainer_info: %s", str(e))
+            return {'status': 'error', 'message': str(e)}, 500
+        finally:
+            session.close()
+    
+    def get_trainers(self):
+        """Return a list of all trainer names stored under the mobileapp aggregator.
+        GET /trainers
+        """
+        session = Session(self.engine)
+        try:
+            devices = (
+                session.query(Device)
+                .join(Aggregator)
+                .filter(Aggregator.guid == 'b2c3d4e5-f6a7-8901-bcde-f12345678901')
+                .all()
+            )
+            if not devices:
+                return {'status': 'error', 'message': 'No trainers found'}, 404
+
+            trainers = [d.name for d in devices]
+
+            return {
+                'status':   'success',
+                'trainers': trainers,
+            }, 200
+
+        except Exception as e:
+            self.logger.exception("Error in get_trainers: %s", str(e))
+            return {'status': 'error', 'message': str(e)}, 500
+        finally:
+            session.close()
+
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     # SSE internals
