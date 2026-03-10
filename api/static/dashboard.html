@@ -883,26 +883,46 @@ async function runRequest() {
     const res = await fetch(url);
     const ms  = Math.round(performance.now() - t0);
     const json = await res.json();
-    const isPoke      = activeEndpoint === 'pokemon_info'  && res.ok && json.data;
+    const isPoke      = activeEndpoint === 'pokemon_info'   && res.ok && json.data;
     const isPcDevice  = activeEndpoint === 'pc_device_info' && res.ok && json.data;
     const isPcDevices = activeEndpoint === 'pc_devices'     && res.ok && json.devices;
     const isTrainer   = activeEndpoint === 'trainer_info'   && res.ok && json.party;
     const isTrainers  = activeEndpoint === 'trainers'       && res.ok && json.trainers;
     const isFormats   = activeEndpoint === 'formats'        && res.ok && json.available;
     if (isPoke) {
-      renderPokeChart(json.data, json.type || v('pk_type') || 'mons');
+      if (document.getElementById('pokeChartWrap')) {
+        updatePokeChart(json.data, json.type || v('pk_type') || 'mons');
+      } else {
+        renderPokeChart(json.data, json.type || v('pk_type') || 'mons');
+      }
       showResponse(res.status, url, json, ms, true);
     } else if (isPcDevice) {
-      renderPcChart(json.data, json.device);
+      if (document.getElementById('pcDashboard')) {
+        updatePcChart(json.data, json.device);
+      } else {
+        renderPcChart(json.data, json.device);
+      }
       showResponse(res.status, url, json, ms, true);
     } else if (isPcDevices) {
-      renderPcDevicesList(json.devices);
+      if (document.getElementById('pcDevicesWrap')) {
+        updatePcDevicesList(json.devices);
+      } else {
+        renderPcDevicesList(json.devices);
+      }
       showResponse(res.status, url, json, ms, true);
     } else if (isTrainer) {
-      renderTrainerParty(json.trainer, json.party);
+      if (document.getElementById('trainerPartyWrap')) {
+        updateTrainerParty(json.trainer, json.party);
+      } else {
+        renderTrainerParty(json.trainer, json.party);
+      }
       showResponse(res.status, url, json, ms, true);
     } else if (isTrainers) {
-      renderTrainersList(json.trainers);
+      if (document.getElementById('trainersWrap')) {
+        updateTrainersList(json.trainers);
+      } else {
+        renderTrainersList(json.trainers);
+      }
       showResponse(res.status, url, json, ms, true);
     } else if (isFormats) {
       renderFormats(json.pinned, json.available);
@@ -1137,16 +1157,16 @@ function renderPcChart(data, deviceName) {
       </div>`;
   }
 
-  function pcGaugeRow(icon, label, pct, detail) {
+  function pcGaugeRow(icon, label, pct, detail, barId, valId) {
     const col = pct >= 85 ? '#ef4444' : pct >= 60 ? '#f59e0b' : '#10b981';
     return `
       <div class="pc-bar-row">
         <span class="pc-bar-icon">${icon}</span>
         <span class="pc-bar-label">${label}</span>
         <div class="poke-bar-track" style="flex:1;">
-          <div class="poke-bar-fill" style="width:${Math.max(2,pct)}%;background:linear-gradient(90deg,${col},${col}cc);"></div>
+          <div id="${barId}" class="poke-bar-fill" style="width:${Math.max(2,pct)}%;background:linear-gradient(90deg,${col},${col}cc);"></div>
         </div>
-        <span class="pc-bar-val">${pct}%<span class="pc-bar-unit"> ${detail ? '— ' + detail : ''}</span></span>
+        <span id="${valId}" class="pc-bar-val">${pct}%${detail ? ' — ' + detail : ''}</span>
       </div>`;
   }
 
@@ -1161,24 +1181,24 @@ function renderPcChart(data, deviceName) {
       </div>
 
       <div class="pc-bar-section-label">💾 Disk</div>
-      ${pcGaugeRow('', 'Usage', diskUsage, `${diskFree} GB free of ${diskTotal} GB`)}
+      ${pcGaugeRow('', 'Usage', diskUsage, `${diskFree} GB free of ${diskTotal} GB`, 'pc-bar-disk', 'pc-val-disk')}
 
       <div class="pc-bar-section-label" style="margin-top:14px;">🌐 Network <span style="font-size:9px;color:var(--muted);">since boot</span></div>
       <div class="pc-bar-row">
         <span class="pc-bar-icon">↑</span>
         <span class="pc-bar-label">Sent</span>
         <div class="poke-bar-track" style="flex:1;">
-          <div class="poke-bar-fill" style="width:${Math.max(2, Math.round(netSent/netMax*100))}%;background:linear-gradient(90deg,#3b82f6,#60a5fa);"></div>
+          <div id="pc-bar-sent" class="poke-bar-fill" style="width:${Math.max(2, Math.round(netSent/netMax*100))}%;background:linear-gradient(90deg,#3b82f6,#60a5fa);"></div>
         </div>
-        <span class="pc-bar-val">${netSent}<span class="pc-bar-unit"> MB</span></span>
+        <span id="pc-val-sent" class="pc-bar-val">${netSent} MB</span>
       </div>
       <div class="pc-bar-row">
         <span class="pc-bar-icon">↓</span>
         <span class="pc-bar-label">Recv</span>
         <div class="poke-bar-track" style="flex:1;">
-          <div class="poke-bar-fill" style="width:${Math.max(2, Math.round(netRecv/netMax*100))}%;background:linear-gradient(90deg,#8b5cf6,#a78bfa);"></div>
+          <div id="pc-bar-recv" class="poke-bar-fill" style="width:${Math.max(2, Math.round(netRecv/netMax*100))}%;background:linear-gradient(90deg,#8b5cf6,#a78bfa);"></div>
         </div>
-        <span class="pc-bar-val">${netRecv}<span class="pc-bar-unit"> MB</span></span>
+        <span id="pc-val-recv" class="pc-bar-val">${netRecv} MB</span>
       </div>
 
       <div class="pc-bar-section-label" style="margin-top:14px;">🔧 Processes</div>
@@ -1186,29 +1206,29 @@ function renderPcChart(data, deviceName) {
         <span class="pc-bar-icon">⚙</span>
         <span class="pc-bar-label">Processes</span>
         <div class="poke-bar-track" style="flex:1;">
-          <div class="poke-bar-fill" style="width:${Math.max(2, Math.round(procs/procMax*100))}%;background:linear-gradient(90deg,#10b981,#34d399);"></div>
+          <div id="pc-bar-procs" class="poke-bar-fill" style="width:${Math.max(2, Math.round(procs/procMax*100))}%;background:linear-gradient(90deg,#10b981,#34d399);"></div>
         </div>
-        <span class="pc-bar-val">${procs}<span class="pc-bar-unit"></span></span>
+        <span id="pc-val-procs" class="pc-bar-val">${procs}</span>
       </div>
       <div class="pc-bar-row">
         <span class="pc-bar-icon">🧵</span>
         <span class="pc-bar-label">Threads</span>
         <div class="poke-bar-track" style="flex:1;">
-          <div class="poke-bar-fill" style="width:${Math.max(2, Math.round(threads/procMax*100))}%;background:linear-gradient(90deg,#f59e0b,#fbbf24);"></div>
+          <div id="pc-bar-threads" class="poke-bar-fill" style="width:${Math.max(2, Math.round(threads/procMax*100))}%;background:linear-gradient(90deg,#f59e0b,#fbbf24);"></div>
         </div>
-        <span class="pc-bar-val">${threads}<span class="pc-bar-unit"></span></span>
+        <span id="pc-val-threads" class="pc-bar-val">${threads}</span>
       </div>
 
       <div class="pc-bar-section-label" style="margin-top:14px;">🕐 System</div>
       <div class="pc-bar-row" style="grid-template-columns:20px 120px 1fr;">
         <span class="pc-bar-icon">🖥</span>
         <span class="pc-bar-label">Boot time</span>
-        <span class="pc-bar-val" style="margin-left:8px;">${bootStr}</span>
+        <span id="pc-val-boot" class="pc-bar-val" style="margin-left:8px;">${bootStr}</span>
       </div>
       <div class="pc-bar-row" style="grid-template-columns:20px 120px 1fr;">
         <span class="pc-bar-icon">👤</span>
         <span class="pc-bar-label">Users logged in</span>
-        <span class="pc-bar-val" style="margin-left:8px;">${users}</span>
+        <span id="pc-val-users" class="pc-bar-val" style="margin-left:8px;">${users}</span>
       </div>
     </div>`;
 
@@ -1542,6 +1562,123 @@ function loadFormat(fmt) {
     runRequest();
   }, 50);
 }
+
+/* ── In-place update functions ── */
+
+function updatePcChart(data, deviceName) {
+  const netSent   = data['net-total-sent-mb']    ?? '?';
+  const netRecv   = data['net-total-recv-mb']    ?? '?';
+  const procs     = data['system-process-count'] ?? '?';
+  const threads   = data['system-thread-count']  ?? '?';
+  const users     = data['users-logged-in']      ?? '?';
+  const diskFree  = data['disk-free-gb']         ?? '?';
+  const diskTotal = data['disk-total-gb']        ?? '?';
+  const diskUsage = data['disk-usage']           ?? 0;
+  const bootEpoch = data['boot-time-epoch'];
+  const bootStr   = bootEpoch ? new Date(bootEpoch * 1000).toLocaleString() : '—';
+  const netMax    = Math.max(netSent, netRecv, 1);
+  const procMax   = Math.max(procs, threads, 1);
+
+  function setBar(id, pct, color) {
+    const el = document.getElementById(id);
+    if (el) { el.style.width = Math.max(2, pct) + '%'; if (color) el.style.background = color; }
+  }
+  function setVal(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  }
+
+  const diskCol = diskUsage >= 85 ? '#ef4444' : diskUsage >= 60 ? '#f59e0b' : '#10b981';
+  setBar('pc-bar-disk',    diskUsage, 'linear-gradient(90deg,' + diskCol + ',' + diskCol + 'cc)');
+  setVal('pc-val-disk',    diskUsage + '%' + (diskFree !== '?' ? ' — ' + diskFree + ' GB free of ' + diskTotal + ' GB' : ''));
+  setBar('pc-bar-sent',    Math.round(netSent / netMax * 100));
+  setVal('pc-val-sent',    netSent + ' MB');
+  setBar('pc-bar-recv',    Math.round(netRecv / netMax * 100));
+  setVal('pc-val-recv',    netRecv + ' MB');
+  setBar('pc-bar-procs',   Math.round(procs / procMax * 100));
+  setVal('pc-val-procs',   procs);
+  setBar('pc-bar-threads', Math.round(threads / procMax * 100));
+  setVal('pc-val-threads', threads);
+  setVal('pc-val-boot',    bootStr);
+  setVal('pc-val-users',   users);
+}
+
+function updatePokeChart(data, type) {
+  const newData = Object.entries(data).sort((a, b) => b[1] - a[1]);
+  const maxVal  = newData[0]?.[1] || 1;
+  const rows    = document.querySelectorAll('#pokeRows .poke-row');
+  let needsRedraw = false;
+
+  rows.forEach((row, i) => {
+    if (i >= newData.length) return;
+    const [name, count] = newData[i];
+    const pct    = Math.max(2, Math.round((count / maxVal) * 100));
+    const fill   = row.querySelector('.poke-bar-fill');
+    const countEl = row.querySelector('.poke-count');
+    const nameEl  = row.querySelector('.poke-name');
+    if (nameEl && nameEl.textContent !== name) { needsRedraw = true; return; }
+    if (fill)    fill.style.width = pct + '%';
+    if (countEl) countEl.textContent = count;
+  });
+
+  pokeAllData = newData;
+  if (needsRedraw) { drawPokeRows(); return; }
+  const title = document.querySelector('#pokeChartWrap .poke-chart-title strong');
+  if (title) title.textContent = newData.length + ' ' + (type === 'move' ? 'moves' : 'Pokémon');
+}
+
+function updatePcDevicesList(devices) {
+  const list = document.querySelector('#pcDevicesWrap .trainers-list');
+  if (!list) return;
+  const existing = new Set([...list.querySelectorAll('.trainer-item-name')].map(el => el.textContent));
+  const incoming = new Set(devices);
+  list.querySelectorAll('.trainer-item').forEach(item => {
+    if (!incoming.has(item.querySelector('.trainer-item-name').textContent)) item.remove();
+  });
+  devices.forEach(d => {
+    if (!existing.has(d)) {
+      const div = document.createElement('div');
+      div.className = 'trainer-item';
+      div.onclick = () => loadPcDevice(d);
+      div.innerHTML = '<span class="trainer-item-icon">\u{1F5A5}</span><span class="trainer-item-name">' + escHtml(d) + '</span><span class="trainer-item-hint">click to view snapshot \u2192</span>';
+      list.appendChild(div);
+    }
+  });
+}
+
+function updateTrainersList(trainers) {
+  const list = document.querySelector('#trainersWrap .trainers-list');
+  if (!list) return;
+  const existing = new Set([...list.querySelectorAll('.trainer-item-name')].map(el => el.textContent));
+  const incoming = new Set(trainers);
+  list.querySelectorAll('.trainer-item').forEach(item => {
+    if (!incoming.has(item.querySelector('.trainer-item-name').textContent)) item.remove();
+  });
+  trainers.forEach(t => {
+    if (!existing.has(t)) {
+      const div = document.createElement('div');
+      div.className = 'trainer-item';
+      div.onclick = () => loadTrainer(t);
+      div.innerHTML = '<span class="trainer-item-icon">\u{1F9E2}</span><span class="trainer-item-name">' + escHtml(t) + '</span><span class="trainer-item-hint">click to view party \u2192</span>';
+      list.appendChild(div);
+    }
+  });
+}
+
+function updateTrainerParty(trainerName, party) {
+  const dashboard = document.querySelector('#trainerPartyWrap .trainer-dashboard');
+  if (!dashboard) { renderTrainerParty(trainerName, party); return; }
+  const totalMons = Object.values(party).reduce((sum, mons) => sum + mons.length, 0);
+  const countEl   = dashboard.querySelector('.trainer-count');
+  if (countEl) countEl.textContent = totalMons + ' Pokémon across ' + Object.keys(party).length + ' game(s)';
+  Object.entries(party).forEach(([gen, mons]) => {
+    const genKey   = escHtml(gen).replace(/\s+/g, '-');
+    const section  = dashboard.querySelector('#grid-' + genKey);
+    const genCount = section?.closest('.gen-section')?.querySelector('.gen-count');
+    if (genCount) genCount.textContent = mons.length;
+  });
+}
+
 
 /* ── Syntax highlight ── */
 function syntaxHighlight(obj) {
