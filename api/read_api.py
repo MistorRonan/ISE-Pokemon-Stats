@@ -207,7 +207,7 @@ class ReadAPI:
             devices = (
                 session.query(Device)
                 .join(Aggregator)
-                .filter(Aggregator.guid == str(PCInfo.aggregator_guid))
+                .filter(Aggregator.name == 'Devices')
                 .all()
             )
             if not devices:
