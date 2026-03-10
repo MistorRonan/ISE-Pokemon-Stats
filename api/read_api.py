@@ -238,7 +238,7 @@ class ReadAPI:
                 session.query(Device)
                 .join(Aggregator)
                 .filter(
-                    Aggregator.guid == str(PCInfo.aggregator_guid),
+                    Aggregator.name == 'Devices',
                     Device.name == device_name
                 )
                 .first()
