@@ -202,7 +202,7 @@ class IngestAPI:
     def run(self) -> int:
         try:
             self.logger.info("Starting IngestAPI on port %s", self.config.ingest_api.port)
-            self.webserver.run(debug=self.config.ingest_api.debug, port=self.config.ingest_api.port)
+            self.webserver.run(host='0.0.0.0',debug=self.config.ingest_api.debug, port=self.config.ingest_api.port)
             return 0
         except Exception as e:
             self.logger.exception("IngestAPI failed: %s", str(e))

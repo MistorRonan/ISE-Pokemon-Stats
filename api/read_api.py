@@ -681,6 +681,7 @@ class ReadAPI:
         try:
             self.logger.info("Starting ReadAPI on port %s", self.config.read_api.port)
             self.webserver.run(
+		host='0.0.0.0',
                 debug=self.config.read_api.debug,
                 port=self.config.read_api.port,
                 threaded=True   # each SSE client holds its own thread
