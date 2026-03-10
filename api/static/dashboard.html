@@ -575,8 +575,11 @@
   <button class="endpoint-btn" onclick="selectEndpoint('metrics')" id="btn-metrics">
     <span class="method-tag">GET</span>/metrics
   </button>
-  <button class="endpoint-btn" onclick="selectEndpoint('pc_info')" id="btn-pc_info">
-    <span class="method-tag">GET</span>/pc_info
+  <button class="endpoint-btn" onclick="selectEndpoint('pc_devices')" id="btn-pc_devices">
+    <span class="method-tag">GET</span>/pc_devices
+  </button>
+  <button class="endpoint-btn" onclick="selectEndpoint('pc_device_info')" id="btn-pc_device_info">
+    <span class="method-tag">GET</span>/pc_device_info
   </button>
   <button class="endpoint-btn" onclick="selectEndpoint('pokemon_info')" id="btn-pokemon_info">
     <span class="method-tag">GET</span>/pokemon_info
@@ -615,6 +618,34 @@ const BASE_URL_KEY = 'readapi_base_url';
 const endpointEl = document.getElementById('main');
 let activeEndpoint = 'hello';
 let sseSource = null;
+
+/* ── Silent background poller ── */
+const POLL_INTERVAL_MS = 15000;
+let _pollTimer = null;
+
+function _startPoller() {
+  _stopPoller();
+  const ep = endpoints[activeEndpoint];
+  // Don't poll SSE endpoints or ones that require user input to build a valid URL
+  if (!ep || ep.sse) return;
+  _pollTimer = setInterval(() => {
+    const current = endpoints[activeEndpoint];
+    if (!current || current.sse) return;
+    try {
+      current.build(); // dry-run to check params are valid — throws if required fields missing
+      runRequest();
+    } catch (_) {
+      // Required param not filled in yet — skip silently
+    }
+  }, POLL_INTERVAL_MS);
+}
+
+function _stopPoller() {
+  if (_pollTimer !== null) {
+    clearInterval(_pollTimer);
+    _pollTimer = null;
+  }
+}
 
 function saveBaseUrl() {
   localStorage.setItem(BASE_URL_KEY, document.getElementById('baseUrl').value);
@@ -663,11 +694,23 @@ const endpoints = {
       return `${getBase()}/metrics` + (params.length ? '?' + params.join('&') : '');
     },
   },
-  pc_info: {
-    title: '/pc_info',
-    desc: 'Live hardware snapshot from the server machine',
+  pc_devices: {
+    title: '/pc_devices',
+    desc: 'List all PC devices in the Devices aggregator',
     params: [],
-    build: () => `${getBase()}/pc_info`,
+    build: () => `${getBase()}/pc_devices`,
+  },
+  pc_device_info: {
+    title: '/pc_device_info',
+    desc: 'Most recent hardware snapshot for a specific PC device',
+    params: [
+      { id: 'pcd_device', label: 'device', placeholder: 'e.g. Betty_III', hint: 'Device hostname' },
+    ],
+    build: () => {
+      const d = v('pcd_device');
+      if (!d) throw new Error('device is required');
+      return `${getBase()}/pc_device_info?device=${encodeURIComponent(d)}`;
+    },
   },
   pokemon_info: {
     title: '/pokemon_info',
@@ -724,6 +767,18 @@ function selectEndpoint(name) {
   document.querySelectorAll('.endpoint-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('btn-' + name).classList.add('active');
   render();
+  _startPoller();
+  // Auto-fire request after render — skip SSE and endpoints with required params not yet filled
+  const ep = endpoints[name];
+  if (!ep || ep.sse) return;
+  setTimeout(() => {
+    try {
+      ep.build(); // dry-run: throws if required params are missing
+      runRequest();
+    } catch (_) {
+      // Required param not filled in yet — wait for user input
+    }
+  }, 50);
 }
 
 function render() {
@@ -756,7 +811,6 @@ function renderRestPanel(ep) {
       </div>
       <div class="panel-body">
         ${paramsHTML}
-        <button class="run-btn" id="runBtn" onclick="runRequest()">▶ Send Request</button>
         <div id="responseArea"></div>
       </div>
     </div>`;
@@ -764,12 +818,10 @@ function renderRestPanel(ep) {
 
 async function runRequest() {
   const ep = endpoints[activeEndpoint];
-  const btn = document.getElementById('runBtn');
-  btn.disabled = true; btn.textContent = '⏳ Sending…';
 
   let url;
   try { url = ep.build(); } catch(e) {
-    showResponse(null, null, e.message); btn.disabled = false; btn.textContent = '▶ Send Request'; return;
+    showResponse(null, null, e.message); return;
   }
 
   const t0 = performance.now();
@@ -777,16 +829,20 @@ async function runRequest() {
     const res = await fetch(url);
     const ms  = Math.round(performance.now() - t0);
     const json = await res.json();
-    const isPoke    = activeEndpoint === 'pokemon_info'  && res.ok && json.data;
-    const isPc      = activeEndpoint === 'pc_info'        && res.ok && json.data;
-    const isTrainer = activeEndpoint === 'trainer_info'   && res.ok && json.party;
-    const isTrainers= activeEndpoint === 'trainers'       && res.ok && json.trainers;
-    const isFormats = activeEndpoint === 'formats'        && res.ok && json.available;
+    const isPoke      = activeEndpoint === 'pokemon_info'  && res.ok && json.data;
+    const isPcDevice  = activeEndpoint === 'pc_device_info' && res.ok && json.data;
+    const isPcDevices = activeEndpoint === 'pc_devices'     && res.ok && json.devices;
+    const isTrainer   = activeEndpoint === 'trainer_info'   && res.ok && json.party;
+    const isTrainers  = activeEndpoint === 'trainers'       && res.ok && json.trainers;
+    const isFormats   = activeEndpoint === 'formats'        && res.ok && json.available;
     if (isPoke) {
       renderPokeChart(json.data, json.type || v('pk_type') || 'mons');
       showResponse(res.status, url, json, ms, true);
-    } else if (isPc) {
-      renderPcChart(json.data);
+    } else if (isPcDevice) {
+      renderPcChart(json.data, json.device);
+      showResponse(res.status, url, json, ms, true);
+    } else if (isPcDevices) {
+      renderPcDevicesList(json.devices);
       showResponse(res.status, url, json, ms, true);
     } else if (isTrainer) {
       renderTrainerParty(json.trainer, json.party);
@@ -803,7 +859,6 @@ async function runRequest() {
   } catch(e) {
     showResponse(null, url, { error: e.message }, undefined, false);
   }
-  btn.disabled = false; btn.textContent = '▶ Send Request';
 }
 
 function showResponse(status, url, data, ms, asDropdown = false) {
@@ -852,6 +907,7 @@ function renderSSEPanel(ep) {
 
 function startSSE() {
   if (sseSource) stopSSE();
+  _stopPoller();
   const url = `${getBase()}/stream`;
   sseSource = new EventSource(url);
 
@@ -947,7 +1003,34 @@ function stat(label, value, unit) {
     </div>`;
 }
 
-function renderPcChart(data) {
+/* ── PC devices list ── */
+function renderPcDevicesList(devices) {
+  const existing = document.getElementById('pcDevicesWrap');
+  if (existing) existing.remove();
+
+  const wrap = document.createElement('div');
+  wrap.id = 'pcDevicesWrap';
+  wrap.innerHTML = `
+    <div class="trainers-list">
+      ${devices.map(d => `
+        <div class="trainer-item" onclick="loadPcDevice('${escHtml(d)}')">
+          <span class="trainer-item-icon">🖥</span>
+          <span class="trainer-item-name">${escHtml(d)}</span>
+          <span class="trainer-item-hint">click to view snapshot →</span>
+        </div>`).join('')}
+    </div>`;
+  document.getElementById('responseArea').parentNode.insertBefore(wrap, document.getElementById('responseArea'));
+}
+
+async function loadPcDevice(name) {
+  selectEndpoint('pc_device_info');
+  await new Promise(r => setTimeout(r, 50));
+  const input = document.getElementById('pcd_device');
+  if (input) input.value = name;
+  runRequest();
+}
+
+function renderPcChart(data, deviceName) {
   const existing = document.getElementById('pcDashboard');
   if (existing) existing.remove();
 
@@ -1005,7 +1088,7 @@ function renderPcChart(data) {
   wrap.innerHTML = `
     <div class="poke-chart-wrap">
       <div class="poke-chart-title">
-        <strong>Betty_III</strong>
+        <strong>${escHtml(deviceName || 'PC Device')}</strong>
         <span>live hardware snapshot</span>
       </div>
 
@@ -1414,6 +1497,7 @@ function escHtml(s) {
 const saved = localStorage.getItem(BASE_URL_KEY);
 if (saved) document.getElementById('baseUrl').value = saved;
 render();
+_startPoller();
 </script>
 </body>
 </html>

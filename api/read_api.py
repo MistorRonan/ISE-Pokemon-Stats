@@ -89,7 +89,8 @@ class ReadAPI:
         self.webserver.route("/aggregators",  methods=['GET'])(self.get_aggregators)
         self.webserver.route("/devices",      methods=['GET'])(self.get_devices)
         self.webserver.route("/metrics",      methods=['GET'])(self.get_metrics)
-        self.webserver.route("/pc_info",      methods=['GET'])(self.get_pc_info)
+        self.webserver.route("/pc_devices",      methods=['GET'])(self.get_pc_devices)
+        self.webserver.route("/pc_device_info",  methods=['GET'])(self.get_pc_device_info)
         self.webserver.route("/pokemon_info", methods=['GET'])(self.get_pokemon_info)
         self.webserver.route("/stream",       methods=['GET'])(self.stream)
         self.webserver.route("/trainer_info", methods=['GET'])(self.get_trainer_info)
@@ -197,23 +198,54 @@ class ReadAPI:
         finally:
             session.close()
 
-    def get_pc_info(self):
-        """Return the latest PC hardware snapshot from the database.
-        GET /pc_info
+    def get_pc_devices(self):
+        """Return a list of all PC device names stored under the Devices aggregator.
+        GET /pc_devices
         """
         session = Session(self.engine)
         try:
-            # Find the Betty_III device under its aggregator
-            device = (
+            devices = (
                 session.query(Device)
                 .join(Aggregator)
                 .filter(Aggregator.guid == str(PCInfo.aggregator_guid))
+                .all()
+            )
+            if not devices:
+                return {'status': 'error', 'message': 'No PC devices found'}, 404
+
+            return {
+                'status':  'success',
+                'devices': [d.name for d in devices],
+            }, 200
+
+        except Exception as e:
+            self.logger.exception("Error in get_pc_devices: %s", str(e))
+            return {'status': 'error', 'message': str(e)}, 500
+        finally:
+            session.close()
+
+    def get_pc_device_info(self):
+        """Return the most recent hardware snapshot for a specific PC device.
+        GET /pc_device_info?device=<name>
+        """
+        device_name = request.args.get('device')
+        if not device_name:
+            return {'status': 'error', 'message': 'device parameter is required'}, 400
+
+        session = Session(self.engine)
+        try:
+            device = (
+                session.query(Device)
+                .join(Aggregator)
+                .filter(
+                    Aggregator.guid == str(PCInfo.aggregator_guid),
+                    Device.name == device_name
+                )
                 .first()
             )
             if not device:
-                return {'status': 'error', 'message': 'No PC data found in database'}, 404
+                return {'status': 'error', 'message': f'No PC device "{device_name}" found'}, 404
 
-            # Get the most recent snapshot
             latest_snapshot = (
                 session.query(MetricSnapshot)
                 .filter_by(device_id=device.device_id)
@@ -221,9 +253,8 @@ class ReadAPI:
                 .first()
             )
             if not latest_snapshot:
-                return {'status': 'error', 'message': 'No snapshots found'}, 404
+                return {'status': 'error', 'message': f'No snapshots found for device "{device_name}"'}, 404
 
-            # Rebuild flat dict of metric name -> value
             metric_values = (
                 session.query(MetricValue)
                 .join(DeviceMetricType)
@@ -233,10 +264,14 @@ class ReadAPI:
 
             data = {mv.device_metric_type.name: mv.value for mv in metric_values}
 
-            return {'status': 'success', 'data': data}, 200
+            return {
+                'status': 'success',
+                'device': device_name,
+                'data':   data,
+            }, 200
 
         except Exception as e:
-            self.logger.exception("Error in get_pc_info: %s", str(e))
+            self.logger.exception("Error in get_pc_device_info: %s", str(e))
             return {'status': 'error', 'message': str(e)}, 500
         finally:
             session.close()

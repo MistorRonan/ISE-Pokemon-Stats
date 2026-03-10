@@ -30,7 +30,7 @@ _config = Config(__file__)
 # Collector identity — read by collectors/__init__.py for DTO packaging
 # ---------------------------------------------------------------------------
 
-aggregator_name: str  = platform.node()
+aggregator_name: str  = "Devices"
 aggregator_guid       = get_machine_guid()
 device_name: str      = platform.node()
 interval: int         = _config.client.interval
