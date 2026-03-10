@@ -795,7 +795,7 @@ function renderRestPanel(ep) {
           <label class="param-label" for="${p.id}">${p.label}</label>
           ${p.select
             ? `<select class="param-input" id="${p.id}">${p.select.map(o => `<option value="${o}">${o}</option>`).join('')}</select>`
-            : `<input class="param-input" id="${p.id}" placeholder="${p.placeholder || ''}" />`
+            : `<input class="param-input" id="${p.id}" placeholder="${p.placeholder || ''}" onkeydown="if(event.key==='Enter') runRequest()" />`
           }
         </div>
         ${p.hint ? `<div class="param-row"><span></span><span class="param-hint">${p.hint}</span></div>` : ''}
