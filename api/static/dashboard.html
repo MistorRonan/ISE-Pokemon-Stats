@@ -3,19 +3,19 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Read API Explorer</title>
+<title>Pokédex Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
 <style>
   :root {
-    --bg:       #0d0f12;
-    --surface:  #151820;
-    --border:   #252a35;
-    --accent:   #3b82f6;
-    --accent2:  #10b981;
+    --bg:       #0a0e1a;
+    --surface:  #0f1524;
+    --border:   #1e2d4a;
+    --accent:   #FFCB05;
+    --accent2:  #3D7DCA;
     --warn:     #f59e0b;
     --error:    #ef4444;
     --text:     #e2e8f0;
-    --muted:    #64748b;
+    --muted:    #6b7fa3;
     --mono:     'IBM Plex Mono', monospace;
     --sans:     'IBM Plex Sans', sans-serif;
   }
@@ -36,99 +36,160 @@
   /* ── Header ── */
   header {
     grid-column: 1 / -1;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
+    background: linear-gradient(90deg, #0f1a30 0%, #0a0e1a 100%);
+    border-bottom: 2px solid var(--accent);
     display: flex;
     align-items: center;
-    padding: 0 20px;
-    gap: 12px;
+    padding: 0 24px;
+    gap: 14px;
   }
-  header .logo { font-family: var(--mono); font-weight: 600; font-size: 13px; color: var(--accent); letter-spacing: .05em; }
-  header .sep  { color: var(--border); }
-  header .subtitle { font-size: 12px; color: var(--muted); }
-  header .sse-badge {
+  header .logo {
+    font-family: var(--mono); font-weight: 600; font-size: 15px;
+    color: var(--accent); letter-spacing: .08em;
+    display: flex; align-items: center; gap: 8px;
+  }
+  header .logo .pokeball {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: linear-gradient(180deg, #e63946 0% 50%, #f0f0f0 50% 100%);
+    border: 2px solid #fff;
+    position: relative; flex-shrink: 0;
+    box-shadow: 0 0 8px rgba(255,203,5,.4);
+  }
+  header .logo .pokeball::after {
+    content: ''; position: absolute;
+    top: 50%; left: 50%; transform: translate(-50%,-50%);
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #fff; border: 1.5px solid #333;
+  }
+  header .tagline { font-size: 11px; color: var(--muted); margin-left: 4px; }
+  header .live-badge {
     margin-left: auto;
     display: flex; align-items: center; gap: 6px;
-    font-family: var(--mono); font-size: 11px; color: var(--muted);
+    font-size: 11px; color: var(--muted);
   }
   .dot {
     width: 7px; height: 7px; border-radius: 50%;
-    background: var(--muted);
-    transition: background .3s;
+    background: var(--muted); transition: background .3s;
   }
-  .dot.live { background: var(--accent2); box-shadow: 0 0 6px var(--accent2); animation: pulse 2s infinite; }
+  .dot.live { background: #22c55e; box-shadow: 0 0 6px #22c55e; animation: pulse 2s infinite; }
   .dot.error { background: var(--error); }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
 
   /* ── Sidebar ── */
   aside {
-    background: var(--surface);
+    background: #080c18;
     border-right: 1px solid var(--border);
-    padding: 16px 0;
+    padding: 20px 0 16px;
     overflow-y: auto;
+    display: flex; flex-direction: column;
+  }
+  .nav-logo {
+    padding: 0 20px 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+    font-family: var(--mono); font-size: 11px;
+    color: var(--muted); letter-spacing: .1em; text-transform: uppercase;
   }
   .section-label {
-    font-family: var(--mono); font-size: 10px; font-weight: 600;
-    color: var(--muted); letter-spacing: .12em; text-transform: uppercase;
-    padding: 8px 16px 4px;
+    font-size: 9px; font-weight: 700;
+    color: var(--muted); letter-spacing: .15em; text-transform: uppercase;
+    padding: 14px 20px 4px;
+    opacity: 0.6;
   }
   .endpoint-btn {
-    display: flex; align-items: center; gap: 10px;
-    width: 100%; padding: 9px 16px;
+    display: flex; align-items: center; gap: 12px;
+    width: 100%; padding: 11px 20px;
     background: none; border: none; cursor: pointer;
-    color: var(--text); font-family: var(--mono); font-size: 12px;
-    text-align: left; transition: background .15s;
-    border-left: 2px solid transparent;
+    color: var(--muted); font-family: var(--sans); font-size: 13px; font-weight: 400;
+    text-align: left; transition: all .15s;
+    border-left: 3px solid transparent;
+    border-radius: 0;
   }
-  .endpoint-btn:hover { background: rgba(59,130,246,.06); }
-  .endpoint-btn.active { background: rgba(59,130,246,.1); border-left-color: var(--accent); color: var(--accent); }
-  .method-tag {
-    font-size: 10px; font-weight: 600; padding: 2px 5px; border-radius: 3px;
-    background: rgba(59,130,246,.15); color: var(--accent); flex-shrink: 0;
+  .endpoint-btn .nav-icon { font-size: 16px; flex-shrink: 0; width: 22px; text-align: center; }
+  .endpoint-btn .nav-label { flex: 1; }
+  .endpoint-btn:hover { background: rgba(255,203,5,.04); color: var(--text); }
+  .endpoint-btn.active {
+    background: rgba(255,203,5,.08);
+    border-left-color: var(--accent);
+    color: var(--accent);
+    font-weight: 500;
   }
-  .sse-tag { background: rgba(16,185,129,.15); color: var(--accent2); }
+  .method-tag { display: none; }
+
+  .nav-spacer { flex: 1; }
+  .nav-settings {
+    padding: 12px 20px;
+    border-top: 1px solid var(--border);
+    margin-top: 8px;
+  }
+  .nav-settings-label {
+    font-size: 10px; color: var(--muted); letter-spacing: .08em;
+    text-transform: uppercase; margin-bottom: 6px;
+  }
 
   /* ── Main ── */
-  main { padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
+  main { padding: 0; overflow-y: auto; display: flex; flex-direction: column; }
 
-  .panel {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    overflow: hidden;
-  }
-  .panel-header {
-    padding: 12px 16px;
+  /* Page header */
+  .page-header {
+    padding: 28px 32px 20px;
     border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, #0d1527 0%, var(--bg) 100%);
+  }
+  .page-title {
+    font-family: var(--sans); font-size: 22px; font-weight: 600;
+    color: var(--text); margin-bottom: 4px;
     display: flex; align-items: center; gap: 10px;
   }
-  .panel-title { font-family: var(--mono); font-size: 13px; font-weight: 600; }
+  .page-title .page-icon { font-size: 24px; }
+  .page-subtitle { font-size: 13px; color: var(--muted); }
+
+  /* Search/filter bar */
+  .search-bar {
+    padding: 16px 32px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    display: flex; gap: 10px; align-items: center;
+  }
+  .search-input {
+    flex: 1;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 9px 14px;
+    color: var(--text); font-family: var(--sans); font-size: 13px;
+    outline: none; transition: border-color .15s;
+  }
+  .search-input:focus { border-color: var(--accent); }
+  .search-select {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 9px 14px;
+    color: var(--text); font-family: var(--sans); font-size: 13px;
+    outline: none; cursor: pointer; transition: border-color .15s;
+  }
+  .search-select:focus { border-color: var(--accent); }
+
+  /* Page content */
+  .page-content { padding: 24px 32px; flex: 1; }
+
+  /* Old panel styles - kept for compatibility */
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .panel-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+  .panel-title { font-size: 13px; font-weight: 600; }
   .panel-desc  { font-size: 12px; color: var(--muted); margin-left: auto; }
   .panel-body  { padding: 16px; }
 
-  /* Params form */
-  .params-grid { display: grid; gap: 10px; }
+  /* Params - now hidden in clean bar above */
+  .params-grid { display: none; }
   .param-row { display: grid; grid-template-columns: 140px 1fr; align-items: center; gap: 8px; }
-  .param-label { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .param-label { font-size: 11px; color: var(--muted); }
   .param-input {
     background: var(--bg); border: 1px solid var(--border);
-    border-radius: 4px; padding: 6px 10px;
-    color: var(--text); font-family: var(--mono); font-size: 12px;
+    border-radius: 6px; padding: 8px 12px;
+    color: var(--text); font-family: var(--sans); font-size: 13px;
     outline: none; transition: border-color .15s; width: 100%;
   }
   .param-input:focus { border-color: var(--accent); }
-  .param-hint { font-size: 11px; color: var(--muted); grid-column: 2; margin-top: -6px; }
-
-  .run-btn {
-    margin-top: 12px;
-    padding: 8px 20px; border: 1px solid var(--accent);
-    background: rgba(59,130,246,.1); color: var(--accent);
-    border-radius: 4px; cursor: pointer;
-    font-family: var(--mono); font-size: 12px; font-weight: 600;
-    transition: background .15s;
-  }
-  .run-btn:hover { background: rgba(59,130,246,.2); }
-  .run-btn:disabled { opacity: .4; cursor: not-allowed; }
+  .param-hint { font-size: 11px; color: var(--muted); grid-column: 2; margin-top: -4px; }
+  .run-btn { display: none; }
 
   /* Response area */
   .response-panel { margin-top: 16px; }
@@ -252,7 +313,7 @@
   }
 
   /* JSON colours */
-  .json-key     { color: #93c5fd; }
+  .json-key     { color: #FFCB05; }
   .json-str     { color: #86efac; }
   .json-num     { color: #fde68a; }
   .json-bool    { color: #f9a8d4; }
@@ -311,7 +372,7 @@
 
   /* ── Pokémon chart ── */
     .poke-chart-wrap {
-      margin-top: 16px;
+      margin-top: 0;
       background: var(--bg);
       border: 1px solid var(--border);
       border-radius: 6px;
@@ -379,7 +440,7 @@
     }
     .poke-bar-fill {
       height: 100%; border-radius: 3px;
-      background: linear-gradient(90deg, var(--accent) 0%, #60a5fa 100%);
+      background: linear-gradient(90deg, #FFCB05 0%, #ffe566 100%);
       transition: width .6s cubic-bezier(.4,0,.2,1);
     }
     .poke-count {
@@ -426,10 +487,10 @@
     /* ── PC Info chart ── */
 
   /* ── Trainer party ── */
-  .trainer-dashboard { margin-top: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .trainer-dashboard { margin-top: 0; display: flex; flex-direction: column; gap: 14px; }
   .trainer-header {
     display: flex; align-items: center; gap: 12px;
-    font-family: var(--mono); font-size: 13px; font-weight: 600;
+    font-family: var(--sans); font-size: 15px; font-weight: 600;
   }
   .trainer-name { color: var(--text); }
   .trainer-count { color: var(--muted); font-size: 11px; font-weight: 400; }
@@ -445,7 +506,7 @@
     display: flex; align-items: center; gap: 8px;
   }
   .gen-title .gen-count {
-    margin-left: auto; background: rgba(59,130,246,.15);
+    margin-left: auto; background: rgba(255,203,5,.15);
     color: var(--accent); padding: 1px 7px; border-radius: 10px; font-size: 10px;
   }
   .party-grid {
@@ -469,13 +530,14 @@
   /* Trainers list */
   .trainers-list { margin-top: 16px; display: flex; flex-direction: column; gap: 6px; }
   .trainer-item {
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 14px;
-    background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
-    font-family: var(--mono); font-size: 12px; cursor: pointer;
-    transition: border-color .15s, background .15s;
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 18px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    font-family: var(--sans); font-size: 13px; cursor: pointer;
+    transition: border-color .2s, background .2s, transform .1s;
   }
-  .trainer-item:hover { border-color: var(--accent); background: rgba(59,130,246,.05); }
+  .trainer-item:active { transform: scale(0.99); }
+  .trainer-item:hover { border-color: var(--accent); background: rgba(255,203,5,.05); border-radius: 8px; }
   .trainer-item-icon { font-size: 16px; }
   .trainer-item-name { color: var(--text); }
   .trainer-item-hint { margin-left: auto; font-size: 10px; color: var(--muted); }
@@ -501,7 +563,7 @@
 
 
   /* ── Formats browser ── */
-  .formats-wrap { margin-top: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .formats-wrap { margin-top: 0; display: flex; flex-direction: column; gap: 12px; }
   .formats-toolbar {
     display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
   }
@@ -525,10 +587,10 @@
   }
   .format-item {
     display: flex; align-items: center; gap: 10px;
-    padding: 8px 12px;
-    background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
-    font-family: var(--mono); font-size: 12px;
-    transition: border-color .15s;
+    padding: 10px 14px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    font-family: var(--sans); font-size: 13px;
+    transition: border-color .15s, background .15s;
   }
   .format-item:hover { border-color: var(--accent); }
   .format-item.pinned { border-color: #10b981; background: rgba(16,185,129,.04); }
@@ -554,56 +616,45 @@
 <body>
 
 <header>
-  <span class="logo">READ API</span>
-  <span class="sep">|</span>
-  <span class="subtitle">Explorer</span>
-  <div class="sse-badge">
+  <span class="logo">
+    <div class="pokeball"></div>
+    POKÉDEX
+  </span>
+  <span class="tagline">Live Dashboard</span>
+  <div class="live-badge">
     <div class="dot" id="sseDot"></div>
-    <span id="sseStatus">SSE disconnected</span>
+    <span id="sseStatus" style="font-size:11px;color:var(--muted);">Live</span>
   </div>
 </header>
 
 <aside>
-  <div class="section-label">Endpoints</div>
-
-  <button class="endpoint-btn active" onclick="selectEndpoint('hello')" id="btn-hello">
-    <span class="method-tag">GET</span>/hello
-  </button>
-  <button class="endpoint-btn" onclick="selectEndpoint('devices')" id="btn-devices">
-    <span class="method-tag">GET</span>/devices
-  </button>
-  <button class="endpoint-btn" onclick="selectEndpoint('metrics')" id="btn-metrics">
-    <span class="method-tag">GET</span>/metrics
-  </button>
-  <button class="endpoint-btn" onclick="selectEndpoint('pc_devices')" id="btn-pc_devices">
-    <span class="method-tag">GET</span>/pc_devices
+  <div class="section-label">Overview</div>
+  <button class="endpoint-btn active" onclick="selectEndpoint('pc_devices')" id="btn-pc_devices">
+    <span class="nav-icon">🖥️</span><span class="nav-label">PC Devices</span>
   </button>
   <button class="endpoint-btn" onclick="selectEndpoint('pc_device_info')" id="btn-pc_device_info">
-    <span class="method-tag">GET</span>/pc_device_info
+    <span class="nav-icon">📊</span><span class="nav-label">Device Details</span>
   </button>
+
+  <div class="section-label">Pokémon</div>
   <button class="endpoint-btn" onclick="selectEndpoint('pokemon_info')" id="btn-pokemon_info">
-    <span class="method-tag">GET</span>/pokemon_info
+    <span class="nav-icon">⚔️</span><span class="nav-label">Pokémon Stats</span>
   </button>
   <button class="endpoint-btn" onclick="selectEndpoint('formats')" id="btn-formats">
-    <span class="method-tag">GET</span>/formats
+    <span class="nav-icon">🏆</span><span class="nav-label">Battle Formats</span>
   </button>
 
-  <div class="section-label" style="margin-top:12px;">Mobile App</div>
+  <div class="section-label">Trainers</div>
   <button class="endpoint-btn" onclick="selectEndpoint('trainers')" id="btn-trainers">
-    <span class="method-tag">GET</span>/trainers
+    <span class="nav-icon">🧢</span><span class="nav-label">All Trainers</span>
   </button>
   <button class="endpoint-btn" onclick="selectEndpoint('trainer_info')" id="btn-trainer_info">
-    <span class="method-tag">GET</span>/trainer_info
+    <span class="nav-icon">🎒</span><span class="nav-label">Trainer Party</span>
   </button>
 
-  <div class="section-label" style="margin-top:12px;">Live</div>
-  <button class="endpoint-btn" onclick="selectEndpoint('stream')" id="btn-stream">
-    <span class="method-tag sse-tag">SSE</span>/stream
-  </button>
-
-  <div class="section-label" style="margin-top:20px;">Server</div>
-  <div style="padding: 4px 16px;">
-    <label class="param-label" style="display:block; margin-bottom:4px;">Base URL</label>
+  <div class="nav-spacer"></div>
+  <div class="nav-settings">
+    <div class="nav-settings-label">Server</div>
     <input class="param-input" id="baseUrl" value="http://localhost:5002" style="width:100%;" oninput="saveBaseUrl()" />
   </div>
 </aside>
@@ -616,7 +667,7 @@
 
 const BASE_URL_KEY = 'readapi_base_url';
 const endpointEl = document.getElementById('main');
-let activeEndpoint = 'hello';
+let activeEndpoint = 'pc_devices';
 let sseSource = null;
 
 /* ── Silent background poller ── */
@@ -649,6 +700,7 @@ function _stopPoller() {
 
 function saveBaseUrl() {
   localStorage.setItem(BASE_URL_KEY, document.getElementById('baseUrl').value);
+  _pingServer();
 }
 function getBase() {
   return document.getElementById('baseUrl').value.replace(/\/$/, '');
@@ -695,14 +747,16 @@ const endpoints = {
     },
   },
   pc_devices: {
-    title: '/pc_devices',
-    desc: 'List all PC devices in the Devices aggregator',
+    title: 'PC Devices',
+    icon: '🖥️',
+    desc: 'List all registered PC devices',
     params: [],
     build: () => `${getBase()}/pc_devices`,
   },
   pc_device_info: {
-    title: '/pc_device_info',
-    desc: 'Most recent hardware snapshot for a specific PC device',
+    title: 'Device Details',
+    icon: '📊',
+    desc: 'Latest hardware snapshot for a specific machine',
     params: [
       { id: 'pcd_device', label: 'device', placeholder: 'e.g. Betty_III', hint: 'Device hostname' },
     ],
@@ -713,8 +767,9 @@ const endpoints = {
     },
   },
   pokemon_info: {
-    title: '/pokemon_info',
-    desc: 'Pokémon usage / move counts from recent Showdown replays',
+    title: 'Pokémon Stats',
+    icon: '⚔️',
+    desc: 'Usage & move counts from recent Showdown replays',
     params: [
       { id: 'pk_format', label: 'format', placeholder: 'gen9ou',  hint: 'e.g. gen9ou, gen9uu, gen9randombattle' },
       { id: 'pk_type', label: 'type', select: ['mons', 'move'] },
@@ -725,14 +780,16 @@ const endpoints = {
     },
   },
   trainers: {
-    title: '/trainers',
-    desc: 'List all trainers in the mobile app',
+    title: 'All Trainers',
+    icon: '🧢',
+    desc: 'All registered trainers in the mobile app',
     params: [],
     build: () => `${getBase()}/trainers`,
   },
   trainer_info: {
-    title: '/trainer_info',
-    desc: 'Current party for a trainer grouped by generation',
+    title: 'Trainer Party',
+    icon: '🎒',
+    desc: "A trainer's current party grouped by generation",
     params: [
       { id: 'ti_trainer', label: 'trainer', placeholder: 'e.g. DavidM', hint: 'Trainer username' },
     ],
@@ -743,8 +800,9 @@ const endpoints = {
     },
   },
   formats: {
-    title: '/formats',
-    desc: 'Browse and pin Showdown formats for agent tracking',
+    title: 'Battle Formats',
+    icon: '🏆',
+    desc: 'Browse and pin Showdown formats for tracking',
     params: [],
     build: () => `${getBase()}/formats`,
     custom: true,  // rendered by renderFormats(), not runRequest()
@@ -788,31 +846,27 @@ function render() {
 
 /* ── REST panel ── */
 function renderRestPanel(ep) {
-  const paramsHTML = ep.params.length ? `
-    <div class="params-grid">
+  const searchBar = ep.params.length ? `
+    <div class="search-bar">
       ${ep.params.map(p => `
-        <div class="param-row">
-          <label class="param-label" for="${p.id}">${p.label}</label>
-          ${p.select
-            ? `<select class="param-input" id="${p.id}">${p.select.map(o => `<option value="${o}">${o}</option>`).join('')}</select>`
-            : `<input class="param-input" id="${p.id}" placeholder="${p.placeholder || ''}" onkeydown="if(event.key==='Enter') runRequest()" />`
-          }
-        </div>
-        ${p.hint ? `<div class="param-row"><span></span><span class="param-hint">${p.hint}</span></div>` : ''}
+        ${p.select
+          ? `<select class="search-select" id="${p.id}" onchange="runRequest()">${p.select.map(o => `<option value="${o}">${o}</option>`).join('')}</select>`
+          : `<input class="search-input" id="${p.id}" placeholder="${p.placeholder || p.label}" onkeydown="if(event.key==='Enter') runRequest()" />`
+        }
       `).join('')}
-    </div>` : '<span class="empty-state">No parameters</span>';
+    </div>` : '';
 
   return `
-    <div class="panel">
-      <div class="panel-header">
-        <span class="method-tag">GET</span>
-        <span class="panel-title">${ep.title}</span>
-        <span class="panel-desc">${ep.desc}</span>
+    <div class="page-header">
+      <div class="page-title">
+        <span class="page-icon">${ep.icon || '📋'}</span>
+        ${ep.title}
       </div>
-      <div class="panel-body">
-        ${paramsHTML}
-        <div id="responseArea"></div>
-      </div>
+      <div class="page-subtitle">${ep.desc}</div>
+    </div>
+    ${searchBar}
+    <div class="page-content">
+      <div id="responseArea"></div>
     </div>`;
 }
 
@@ -857,28 +911,21 @@ async function runRequest() {
       showResponse(res.status, url, json, ms, false);
     }
   } catch(e) {
-    showResponse(null, url, { error: e.message }, undefined, false);
+    const area = document.getElementById('responseArea');
+    if (area) area.innerHTML = `<div style="color:var(--error);font-family:var(--mono);font-size:12px;padding:16px 0;">⚠ Could not connect to server — make sure it's running on ${getBase()}</div>`;
   }
 }
 
 function showResponse(status, url, data, ms, asDropdown = false) {
   const area = document.getElementById('responseArea');
   const ok = status && status < 400;
-  const statusHtml = status
-    ? `<span class="${ok ? 'status-ok' : 'status-err'}">${status}</span>`
-    : `<span class="status-err">ERR</span>`;
 
-  const inner = `
-    <div class="response-bar">
-      ${statusHtml}
-      ${ms !== undefined ? `<span>${ms}ms</span>` : ''}
-      ${url ? `<span class="response-url">${url}</span>` : ''}
-    </div>
-    <div class="response-body">${syntaxHighlight(data)}</div>`;
+  const inner = `<div class="response-body">${syntaxHighlight(data)}</div>`;
 
   if (asDropdown) {
-    area.innerHTML = `<details class="json-dropdown">
-      <summary class="json-dropdown-summary">&#9654; Raw JSON response</summary>
+    // Rich view already rendered above — show JSON as subtle collapsible
+    area.innerHTML = `<details class="json-dropdown" style="margin-top:8px;">
+      <summary class="json-dropdown-summary">&#9654; Raw JSON</summary>
       <div class="response-panel" style="margin-top:0;border-radius:0 0 4px 4px;">${inner}</div>
     </details>`;
   } else {
@@ -907,6 +954,7 @@ function renderSSEPanel(ep) {
 
 function startSSE() {
   if (sseSource) stopSSE();
+  _stopPoller();
   _stopPoller();
   const url = `${getBase()}/stream`;
   sseSource = new EventSource(url);
@@ -951,13 +999,32 @@ function stopSSE() {
 }
 
 function setSseStatus(state) {
+  // kept for SSE compatibility but server health dot is driven by _pingServer()
+}
+
+/* ── Server health ping ── */
+function _setServerHealth(online) {
   const dot = document.getElementById('sseDot');
   const txt = document.getElementById('sseStatus');
   dot.className = 'dot';
-  if (state === 'live') { dot.classList.add('live'); txt.textContent = 'SSE connected'; }
-  else if (state === 'error') { dot.classList.add('error'); txt.textContent = 'SSE error'; }
-  else if (state === 'connecting') { txt.textContent = 'SSE connecting…'; }
-  else { txt.textContent = 'SSE disconnected'; }
+  if (online) {
+    dot.classList.add('live');
+    txt.textContent = 'Live';
+    txt.style.color = '#22c55e';
+  } else {
+    // blank / grey when offline
+    txt.textContent = 'Offline';
+    txt.style.color = 'var(--muted)';
+  }
+}
+
+async function _pingServer() {
+  try {
+    const res = await fetch(`${getBase()}/hello`, { signal: AbortSignal.timeout(4000) });
+    _setServerHealth(res.ok);
+  } catch (_) {
+    _setServerHealth(false);
+  }
 }
 
 function logSSE(type, message, cls) {
@@ -1037,6 +1104,7 @@ function renderPcChart(data, deviceName) {
   const area = document.getElementById('responseArea');
   const wrap = document.createElement('div');
   wrap.id = 'pcDashboard';
+  wrap.style.marginTop = '0';
 
   if (data.error) {
     wrap.innerHTML = `<div class="poke-chart-wrap" style="color:var(--error);font-family:var(--mono);font-size:12px;">⚠ ${data.error}</div>`;
@@ -1498,6 +1566,8 @@ const saved = localStorage.getItem(BASE_URL_KEY);
 if (saved) document.getElementById('baseUrl').value = saved;
 render();
 _startPoller();
+_pingServer();
+setInterval(_pingServer, 15000);
 </script>
 </body>
 </html>
